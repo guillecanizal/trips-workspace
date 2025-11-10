@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <a href="{{ url_for('main.list_trips_page') }}">← Back to trips</a>
+  <h1>{{ trip.name }}</h1>
+  <p>{{ trip.description or "No description yet" }}</p>
+  <p>
+    {{ trip.start_date or "?" }} → {{ trip.end_date or "?" }}
+  </p>
+
+  <form method="post">
+    <h2>Edit trip</h2>
+    <label for="name">Name</label>
+    <input id="name" name="name" value="{{ trip.name }}" required />
+
+    <label for="description">Description</label>
+    <textarea id="description" name="description" rows="3">{{ trip.description or "" }}</textarea>
+
+    <label for="start_date">Start date</label>
+    <input id="start_date" name="start_date" type="date" value="{{ trip.start_date.isoformat() if trip.start_date else '' }}" />
+
+    <label for="end_date">End date</label>
+    <input id="end_date" name="end_date" type="date" value="{{ trip.end_date.isoformat() if trip.end_date else '' }}" />
+
+    <button type="submit">Save changes</button>
+  </form>
+
+  <section>
+    <h2>General items</h2>
+    {% if general_items %}
+      {% for item in general_items %}
+        <div class="card">
+          <h3>{{ item.name }}</h3>
+          <p>
+            Description: {{ item.description or "-" }}<br />
+            Reservation: {{ item.reservation_id or "-" }}<br />
+            Price: {{ item.price or "-" }}<br />
+            Cancelable: {{ "Yes" if item.cancelable is not none and item.cancelable else ("No" if item.cancelable is not none else "Unknown") }}
+          </p>
+          <p>
+            {% if item.link %}
+              <a href="{{ item.link }}" target="_blank" rel="noreferrer">Details</a>
+            {% endif %}
+            {% if item.maps_link %}
+              <a href="{{ item.maps_link }}" target="_blank" rel="noreferrer">Map</a>
+            {% endif %}
+          </p>
+
+          <form method="post" action="{{ url_for('main.update_general_item_page', item_id=item.id) }}">
+            <h4>Edit item</h4>
+            <label for="gi-name-{{ item.id }}">Name</label>
+            <input id="gi-name-{{ item.id }}" name="name" value="{{ item.name }}" required />
+
+            <label for="gi-description-{{ item.id }}">Description</label>
+            <textarea id="gi-description-{{ item.id }}" name="description" rows="2">{{ item.description or '' }}</textarea>
+
+            <label for="gi-reservation-{{ item.id }}">Reservation</label>
+            <input id="gi-reservation-{{ item.id }}" name="reservation_id" value="{{ item.reservation_id or '' }}" />
+
+            <label for="gi-price-{{ item.id }}">Price</label>
+            <input id="gi-price-{{ item.id }}" name="price" type="number" step="0.01" value="{{ item.price or '' }}" />
+
+            <label for="gi-link-{{ item.id }}">Link</label>
+            <input id="gi-link-{{ item.id }}" name="link" type="url" value="{{ item.link or '' }}" />
+
+            <label for="gi-maps-link-{{ item.id }}">Maps link</label>
+            <input id="gi-maps-link-{{ item.id }}" name="maps_link" type="url" value="{{ item.maps_link or '' }}" />
+
+            <label for="gi-cancelable-{{ item.id }}">Cancelable?</label>
+            <select id="gi-cancelable-{{ item.id }}" name="cancelable">
+              <option value="" {% if item.cancelable is none %}selected{% endif %}>Unknown</option>
+              <option value="true" {% if item.cancelable is not none and item.cancelable %}selected{% endif %}>Yes</option>
+              <option value="false" {% if item.cancelable is not none and not item.cancelable %}selected{% endif %}>No</option>
+            </select>
+
+            <button type="submit" class="secondary">Save item</button>
+          </form>
+
+          <form method="post" action="{{ url_for('main.delete_general_item_page', item_id=item.id) }}" onsubmit="return confirm('Delete this item?');" class="inline-form">
+            <button type="submit" class="danger">Delete item</button>
+          </form>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p>No flights, rentals, or other items yet.</p>
+    {% endif %}
+  </section>
+
+  <form method="post" action="{{ url_for('main.create_general_item_page', trip_id=trip.id) }}">
+    <h2>Add general item</h2>
+    <label for="gi-name-new">Name</label>
+    <input id="gi-name-new" name="name" required />
+
+    <label for="gi-description-new">Description</label>
+    <textarea id="gi-description-new" name="description" rows="2"></textarea>
+
+    <label for="gi-reservation-new">Reservation</label>
+    <input id="gi-reservation-new" name="reservation_id" />
+
+    <label for="gi-price-new">Price</label>
+    <input id="gi-price-new" name="price" type="number" step="0.01" />
+
+    <label for="gi-link-new">Link</label>
+    <input id="gi-link-new" name="link" type="url" />
+
+    <label for="gi-maps-link-new">Maps link</label>
+    <input id="gi-maps-link-new" name="maps_link" type="url" />
+
+    <label for="gi-cancelable-new">Cancelable?</label>
+    <select id="gi-cancelable-new" name="cancelable">
+      <option value="" selected>Unknown</option>
+      <option value="true">Yes</option>
+      <option value="false">No</option>
+    </select>
+
+    <button type="submit">Add item</button>
+  </form>
+
+  <section>
+    <h2>Days</h2>
+    {% if days %}
+      {% for day in days %}
+        <details class="card day-panel">
+          <summary>Day {{ loop.index }} – {{ day.date or "Unscheduled day" }}</summary>
+          <div class="panel-body">
+            <p>
+              Hotel: {{ day.hotel_name or "-" }}
+              {% if day.hotel_price %}
+                ({{ day.hotel_price }} currency)
+              {% endif %}
+            </p>
+            <p>
+              Reservation: {{ day.hotel_reservation_id or "-" }}<br />
+              Cancelable:
+              {{ "Yes" if day.hotel_cancelable is not none and day.hotel_cancelable else ("No" if day.hotel_cancelable is not none else "Unknown") }}
+            </p>
+            <p>
+              {% if day.hotel_link %}
+                <a href="{{ day.hotel_link }}" target="_blank" rel="noreferrer">Hotel link</a>
+              {% endif %}
+              {% if day.hotel_maps_link %}
+                <a href="{{ day.hotel_maps_link }}" target="_blank" rel="noreferrer">Hotel map</a>
+              {% endif %}
+            </p>
+            <p>
+              Distance: {{ day.distance_km or 0 }} km
+              {% if day.distance_hours or day.distance_minutes %}
+                ({{ day.distance_hours or 0 }}h {{ day.distance_minutes or 0 }}m)
+              {% endif %}
+            </p>
+
+            <strong>Activities</strong>
+            {% if day.activities %}
+              <ul>
+                {% for activity in day.activities %}
+                  <li>
+                    <strong>{{ activity.name }}</strong>
+                    {% if activity.price %}
+                      - {{ activity.price }}
+                    {% endif %}
+                    {% if activity.link or activity.maps_link %}
+                      <div>
+                        {% if activity.link %}
+                          <a href="{{ activity.link }}" target="_blank" rel="noreferrer">Details</a>
+                        {% endif %}
+                        {% if activity.maps_link %}
+                          <a href="{{ activity.maps_link }}" target="_blank" rel="noreferrer">Map</a>
+                        {% endif %}
+                      </div>
+                    {% endif %}
+                    <div>{{ activity.description }}</div>
+                    <div>
+                      Cancelable:
+                      {{ "Yes" if activity.cancelable is not none and activity.cancelable else ("No" if activity.cancelable is not none else "Unknown") }}
+                    </div>
+
+                    <form method="post" action="{{ url_for('main.update_activity_page', activity_id=activity.id) }}">
+                      <h5>Edit activity</h5>
+                      <label for="activity-name-edit-{{ activity.id }}">Name</label>
+                      <input id="activity-name-edit-{{ activity.id }}" name="name" value="{{ activity.name }}" required />
+
+                      <label for="activity-description-edit-{{ activity.id }}">Description</label>
+                      <textarea id="activity-description-edit-{{ activity.id }}" name="description" rows="2">{{ activity.description or '' }}</textarea>
+
+                      <label for="activity-price-edit-{{ activity.id }}">Price</label>
+                      <input id="activity-price-edit-{{ activity.id }}" name="price" type="number" step="0.01" value="{{ activity.price or '' }}" />
+
+                      <label for="activity-reservation-edit-{{ activity.id }}">Reservation</label>
+                      <input id="activity-reservation-edit-{{ activity.id }}" name="reservation_id" value="{{ activity.reservation_id or '' }}" />
+
+                      <label for="activity-link-edit-{{ activity.id }}">Link</label>
+                      <input id="activity-link-edit-{{ activity.id }}" name="link" type="url" value="{{ activity.link or '' }}" />
+
+                      <label for="activity-maps-link-edit-{{ activity.id }}">Maps link</label>
+                      <input id="activity-maps-link-edit-{{ activity.id }}" name="maps_link" type="url" value="{{ activity.maps_link or '' }}" />
+
+                      <label for="activity-cancelable-edit-{{ activity.id }}">Cancelable?</label>
+                      <select id="activity-cancelable-edit-{{ activity.id }}" name="cancelable">
+                        <option value="" {% if activity.cancelable is none %}selected{% endif %}>Unknown</option>
+                        <option value="true" {% if activity.cancelable is not none and activity.cancelable %}selected{% endif %}>Yes</option>
+                        <option value="false" {% if activity.cancelable is not none and not activity.cancelable %}selected{% endif %}>No</option>
+                      </select>
+
+                      <button type="submit" class="secondary">Save activity</button>
+                    </form>
+
+                    <form method="post" action="{{ url_for('main.delete_activity_page', activity_id=activity.id) }}" onsubmit="return confirm('Delete this activity?');" class="inline-form">
+                      <button type="submit" class="danger">Delete activity</button>
+                    </form>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <p>No activities yet.</p>
+            {% endif %}
+
+            <form method="post" action="{{ url_for('main.create_activity_page', day_id=day.id) }}">
+              <h4>Add activity</h4>
+              <label for="activity-name-{{ day.id }}">Name</label>
+              <input id="activity-name-{{ day.id }}" name="name" required />
+
+              <label for="activity-description-{{ day.id }}">Description</label>
+              <textarea id="activity-description-{{ day.id }}" name="description" rows="2"></textarea>
+
+              <label for="activity-price-{{ day.id }}">Price</label>
+              <input id="activity-price-{{ day.id }}" name="price" type="number" step="0.01" />
+
+              <label for="activity-reservation-{{ day.id }}">Reservation</label>
+              <input id="activity-reservation-{{ day.id }}" name="reservation_id" />
+
+              <label for="activity-link-{{ day.id }}">Link</label>
+              <input id="activity-link-{{ day.id }}" name="link" type="url" />
+
+              <label for="activity-maps-link-{{ day.id }}">Maps link</label>
+              <input id="activity-maps-link-{{ day.id }}" name="maps_link" type="url" />
+
+              <label for="activity-cancelable-{{ day.id }}">Cancelable?</label>
+              <select id="activity-cancelable-{{ day.id }}" name="cancelable">
+                <option value="" selected>Unknown</option>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+
+              <button type="submit">Add activity</button>
+            </form>
+
+            <form method="post" action="{{ url_for('main.update_day_page', day_id=day.id) }}">
+              <h4>Edit day</h4>
+              <label for="day-date-{{ day.id }}">Date</label>
+              <input id="day-date-{{ day.id }}" name="date" type="date" value="{{ day.date.isoformat() if day.date else '' }}" />
+
+              <label for="day-hotel-name-{{ day.id }}">Hotel name</label>
+              <input id="day-hotel-name-{{ day.id }}" name="hotel_name" value="{{ day.hotel_name or '' }}" />
+
+              <label for="day-hotel-reservation-{{ day.id }}">Reservation</label>
+              <input id="day-hotel-reservation-{{ day.id }}" name="hotel_reservation_id" value="{{ day.hotel_reservation_id or '' }}" />
+
+              <label for="day-hotel-price-{{ day.id }}">Hotel price</label>
+              <input id="day-hotel-price-{{ day.id }}" name="hotel_price" type="number" step="0.01" value="{{ day.hotel_price or '' }}" />
+
+              <label for="day-hotel-link-{{ day.id }}">Hotel link</label>
+              <input id="day-hotel-link-{{ day.id }}" name="hotel_link" type="url" value="{{ day.hotel_link or '' }}" />
+
+              <label for="day-hotel-maps-link-{{ day.id }}">Hotel maps link</label>
+              <input id="day-hotel-maps-link-{{ day.id }}" name="hotel_maps_link" type="url" value="{{ day.hotel_maps_link or '' }}" />
+
+              <label for="day-hotel-cancelable-{{ day.id }}">Hotel cancelable?</label>
+              <select id="day-hotel-cancelable-{{ day.id }}" name="hotel_cancelable">
+                <option value="" {% if day.hotel_cancelable is none %}selected{% endif %}>Unknown</option>
+                <option value="true" {% if day.hotel_cancelable is not none and day.hotel_cancelable %}selected{% endif %}>Yes</option>
+                <option value="false" {% if day.hotel_cancelable is not none and not day.hotel_cancelable %}selected{% endif %}>No</option>
+              </select>
+
+              <label for="day-distance-{{ day.id }}">Distance (km)</label>
+              <input id="day-distance-{{ day.id }}" name="distance_km" type="number" step="0.1" value="{{ day.distance_km or '' }}" />
+
+              <label for="day-distance-hours-{{ day.id }}">Drive time (hours)</label>
+              <input id="day-distance-hours-{{ day.id }}" name="distance_hours" type="number" min="0" value="{{ day.distance_hours or '' }}" />
+
+              <label for="day-distance-minutes-{{ day.id }}">Drive time (minutes)</label>
+              <input id="day-distance-minutes-{{ day.id }}" name="distance_minutes" type="number" min="0" max="59" value="{{ day.distance_minutes or '' }}" />
+
+              <button type="submit" class="secondary">Save day</button>
+            </form>
+
+            <form method="post" action="{{ url_for('main.delete_day_page', day_id=day.id) }}" onsubmit="return confirm('Delete this day and its activities?');" class="inline-form">
+              <button type="submit" class="danger">Delete day</button>
+            </form>
+          </div>
+        </details>
+      {% endfor %}
+    {% else %}
+      <p>No days added yet.</p>
+    {% endif %}
+  </section>
+
+  <form method="post" action="{{ url_for('main.create_day_page', trip_id=trip.id) }}">
+    <h2>Add a day</h2>
+    <label for="day-date">Date</label>
+    <input id="day-date" name="date" type="date" />
+
+    <label for="day-hotel-name">Hotel name</label>
+    <input id="day-hotel-name" name="hotel_name" />
+
+    <label for="day-hotel-reservation">Reservation</label>
+    <input id="day-hotel-reservation" name="hotel_reservation_id" />
+
+    <label for="day-hotel-price">Hotel price</label>
+    <input id="day-hotel-price" name="hotel_price" type="number" step="0.01" />
+
+    <label for="day-hotel-link-new">Hotel link</label>
+    <input id="day-hotel-link-new" name="hotel_link" type="url" />
+
+    <label for="day-hotel-maps-link-new">Hotel maps link</label>
+    <input id="day-hotel-maps-link-new" name="hotel_maps_link" type="url" />
+
+    <label for="day-hotel-cancelable-new">Hotel cancelable?</label>
+    <select id="day-hotel-cancelable-new" name="hotel_cancelable">
+      <option value="" selected>Unknown</option>
+      <option value="true">Yes</option>
+      <option value="false">No</option>
+    </select>
+
+    <label for="day-distance">Distance (km)</label>
+    <input id="day-distance" name="distance_km" type="number" step="0.1" />
+
+    <label for="day-distance-hours-new">Drive time (hours)</label>
+    <input id="day-distance-hours-new" name="distance_hours" type="number" min="0" />
+
+    <label for="day-distance-minutes-new">Drive time (minutes)</label>
+    <input id="day-distance-minutes-new" name="distance_minutes" type="number" min="0" max="59" />
+
+    <button type="submit">Add day</button>
+  </form>
+{% endblock %}
