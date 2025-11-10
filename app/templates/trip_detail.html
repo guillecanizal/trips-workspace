@@ -8,6 +8,16 @@
     {{ trip.start_date or "?" }} → {{ trip.end_date or "?" }}
   </p>
 
+  <div>
+    {% if can_generate_ai %}
+      <form method="post" action="{{ url_for('main.generate_trip_ai', trip_id=trip.id) }}">
+        <button type="submit">Generate itinerary with AI</button>
+      </form>
+    {% else %}
+      <p><em>AI generation is only available before you add hotels, general items, or activities.</em></p>
+    {% endif %}
+  </div>
+
   <form method="post">
     <h2>Edit trip</h2>
     <label for="name">Name</label>
@@ -23,6 +33,10 @@
     <input id="end_date" name="end_date" type="date" value="{{ trip.end_date.isoformat() if trip.end_date else '' }}" />
 
     <button type="submit">Save changes</button>
+  </form>
+
+  <form method="post" action="{{ url_for('main.delete_trip_page', trip_id=trip.id) }}" onsubmit="return confirm('Delete this entire trip and all related data?');">
+    <button type="submit" class="danger">Delete trip</button>
   </form>
 
   <section>
@@ -129,6 +143,8 @@
                 ({{ day.hotel_price }} currency)
               {% endif %}
             </p>
+            <p>Location: {{ day.hotel_location or "-" }}</p>
+            <p>Description: {{ day.hotel_description or "-" }}</p>
             <p>
               Reservation: {{ day.hotel_reservation_id or "-" }}<br />
               Cancelable:
@@ -252,6 +268,12 @@
               <label for="day-hotel-name-{{ day.id }}">Hotel name</label>
               <input id="day-hotel-name-{{ day.id }}" name="hotel_name" value="{{ day.hotel_name or '' }}" />
 
+              <label for="day-hotel-location-{{ day.id }}">Location</label>
+              <input id="day-hotel-location-{{ day.id }}" name="hotel_location" value="{{ day.hotel_location or '' }}" />
+
+              <label for="day-hotel-description-{{ day.id }}">Description</label>
+              <textarea id="day-hotel-description-{{ day.id }}" name="hotel_description" rows="2">{{ day.hotel_description or '' }}</textarea>
+
               <label for="day-hotel-reservation-{{ day.id }}">Reservation</label>
               <input id="day-hotel-reservation-{{ day.id }}" name="hotel_reservation_id" value="{{ day.hotel_reservation_id or '' }}" />
 
@@ -301,6 +323,12 @@
 
     <label for="day-hotel-name">Hotel name</label>
     <input id="day-hotel-name" name="hotel_name" />
+
+    <label for="day-hotel-location">Location</label>
+    <input id="day-hotel-location" name="hotel_location" />
+
+    <label for="day-hotel-description">Description</label>
+    <textarea id="day-hotel-description" name="hotel_description" rows="2"></textarea>
 
     <label for="day-hotel-reservation">Reservation</label>
     <input id="day-hotel-reservation" name="hotel_reservation_id" />

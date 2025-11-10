@@ -124,6 +124,25 @@
       .day-panel .panel-body {
         padding-top: 0.25rem;
       }
+      .flash-container {
+        margin: 1rem auto;
+        max-width: 900px;
+      }
+      .flash {
+        padding: 0.75rem 1rem;
+        border-radius: 0.375rem;
+        margin-bottom: 0.5rem;
+        color: #0f172a;
+        background: #dbeafe;
+      }
+      .flash-success {
+        background: #dcfce7;
+        border: 1px solid #86efac;
+      }
+      .flash-error {
+        background: #fee2e2;
+        border: 1px solid #f87171;
+      }
       table {
         width: 100%;
         border-collapse: collapse;
@@ -161,6 +180,15 @@
       <strong>Trip Planner</strong>
     </header>
     <main>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-container">
+            {% for category, message in messages %}
+              <div class="flash flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
       {% block content %}{% endblock %}
     </main>
   </body>

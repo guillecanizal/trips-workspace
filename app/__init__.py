@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, Dict
 
@@ -20,6 +21,7 @@ def create_app(test_config: Dict[str, Any] | None = None) -> Flask:
     default_db_path = instance_path / "trip_planner.db"
     app.config.from_mapping(
         DATABASE_URL=f"sqlite:///{default_db_path}",
+        SECRET_KEY=os.environ.get("SECRET_KEY", "dev-secret-key"),
     )
 
     if test_config:

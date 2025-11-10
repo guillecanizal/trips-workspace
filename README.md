@@ -45,4 +45,11 @@ requirements.txt   # Minimal dependencies
 
 Activities and general items now track `link`, `maps_link`, and `cancelable` flags, so you can keep booking links and cancellation info handy. General items also support an optional `description`. Days support hotel metadata (`hotel_link`, `hotel_maps_link`, `hotel_cancelable`), plus `distance_hours`/`distance_minutes` alongside `distance_km` to record drive time.
 
-Use the HTML UI at `/trips` for quick manual testing—create a trip (dates are required so the planner seeds each day automatically), edit details, add/edit/delete days and activities, and manage general items without touching an API client.
+Use the HTML UI at `/trips` for quick manual testing—create a trip (dates are required so the planner seeds each day automatically), edit details, add/edit/delete days and activities, manage general items, and (optionally) let the AI helper pre-fill empty trips (see below).
+
+## Optional AI itinerary generator
+
+- Install [Ollama](https://ollama.com/) locally and pull a chat model (default `llama3.1`).
+- Install `langchain-ollama` (already listed in `requirements.txt`).
+- (Optional) set `OLLAMA_MODEL` to point at a different local model name.
+- On an empty trip, click **Generate itinerary with AI** to have the model suggest daily stay ideas plus multiple activities; the raw JSON response is saved under `logs/` and the Flask console logs will show success/error summaries.

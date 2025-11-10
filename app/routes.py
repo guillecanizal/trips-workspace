@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from flask import (Blueprint, abort, current_app, jsonify, redirect,
+from flask import (Blueprint, abort, current_app, flash, jsonify, redirect,
                    render_template, request, url_for)
 from sqlalchemy import select
 
 from .models import Activity, Day, GeneralItem, Trip
+from .services.ai import AIGenerationError, generate_itinerary
 
 
 bp = Blueprint("main", __name__)
@@ -103,6 +104,87 @@ def enforce_trip_date_range(trip: Trip) -> tuple[date, date]:
     if trip.end_date < trip.start_date:
         abort(400, "Trip end date must be on or after the start date")
     return trip.start_date, trip.end_date
+
+
+def trip_is_empty(trip: Trip) -> bool:
+    if trip.general_items:
+        return False
+    for day in trip.days:
+        has_hotel_info = any(
+            [
+                day.hotel_name,
+                day.hotel_reservation_id,
+                day.hotel_price,
+                day.hotel_link,
+                day.hotel_maps_link,
+            ]
+        )
+        if has_hotel_info or day.activities:
+            return False
+    return True
+
+
+def _safe_float(value):
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def apply_ai_payload(session, trip: Trip, payload: dict) -> dict[str, int]:
+    summary = {"days": 0, "activities": 0, "general_items": 0}
+    day_lookup = {day.date.isoformat(): day for day in trip.days if day.date}
+
+    for day_info in payload.get("days", []) or []:
+        date_str = day_info.get("date")
+        day = day_lookup.get(date_str)
+        if not day:
+            continue
+        hotel = day_info.get("hotel") or {}
+        if hotel.get("name"):
+            day.hotel_name = hotel.get("name")
+        if hotel.get("location"):
+            day.hotel_location = hotel.get("location")
+        if hotel.get("notes") or hotel.get("description"):
+            day.hotel_description = hotel.get("notes") or hotel.get("description")
+
+        for activity_info in day_info.get("activities", []) or []:
+            name = (activity_info.get("name") or "").strip()
+            if not name:
+                continue
+            activity = Activity(
+                day=day,
+                name=name,
+                description=(
+                    activity_info.get("details")
+                    or activity_info.get("summary")
+                    or activity_info.get("description")
+                    or None
+                ),
+                price=_safe_float(activity_info.get("price")),
+            )
+            session.add(activity)
+            summary["activities"] += 1
+        summary["days"] += 1
+
+    for item in payload.get("general_items", []) or []:
+        name = (item.get("name") or "").strip()
+        if not name:
+            continue
+        general_item = GeneralItem(
+            trip=trip,
+            name=name,
+            description=item.get("description") or None,
+            reservation_id=item.get("reservation_id") or None,
+            price=_safe_float(item.get("price")),
+            link=item.get("link") or None,
+        )
+        session.add(general_item)
+        summary["general_items"] += 1
+
+    return summary
 
 
 @bp.route("/")
@@ -630,14 +712,72 @@ def view_trip_page(trip_id: int):
         )
         general_items = sorted(
             trip.general_items,
-            key=lambda item: (item.name.lower(), item.id),
+            key=lambda item: ((item.name or "").lower(), item.id),
         )
         return render_template(
             "trip_detail.html",
             trip=trip,
             days=ordered_days,
             general_items=general_items,
+            can_generate_ai=trip_is_empty(trip),
         )
+    finally:
+        session.close()
+
+
+@bp.post("/trips/<int:trip_id>/generate-ai")
+def generate_trip_ai(trip_id: int):
+    session = get_session()
+    try:
+        trip = session.get(Trip, trip_id)
+        if not trip:
+            abort(404, "Trip not found")
+
+        if not trip_is_empty(trip):
+            flash("AI generation is only available for empty trips.", "error")
+            return redirect(url_for("main.view_trip_page", trip_id=trip.id))
+
+        day_dates = sorted(day.date for day in trip.days if day.date)
+        if not day_dates:
+            flash("Trip needs dated days before generating.", "error")
+            return redirect(url_for("main.view_trip_page", trip_id=trip.id))
+
+        current_app.logger.info(
+            "AI generation requested", extra={"trip_id": trip.id, "days": len(day_dates)}
+        )
+
+        try:
+            payload, log_file = generate_itinerary(
+                trip.id,
+                trip.name,
+                trip.description,
+                day_dates,
+            )
+        except AIGenerationError as exc:
+            current_app.logger.error(
+                "AI generation failed", extra={"trip_id": trip.id, "error": str(exc)}
+            )
+            flash(f"AI generation failed: {exc}", "error")
+            return redirect(url_for("main.view_trip_page", trip_id=trip.id))
+
+        summary = apply_ai_payload(session, trip, payload)
+        session.commit()
+        current_app.logger.info(
+            "AI itinerary applied",
+            extra={
+                "trip_id": trip.id,
+                "days": summary["days"],
+                "activities": summary["activities"],
+                "general_items": summary["general_items"],
+                "log_file": str(log_file),
+            },
+        )
+        flash(
+            "AI itinerary added: "
+            f"{summary['days']} days, {summary['activities']} activities, {summary['general_items']} general items.",
+            "success",
+        )
+        return redirect(url_for("main.view_trip_page", trip_id=trip.id))
     finally:
         session.close()
 
@@ -668,6 +808,21 @@ def update_trip_page(trip_id: int):
         session.close()
 
 
+@bp.post("/trips/<int:trip_id>/delete")
+def delete_trip_page(trip_id: int):
+    session = get_session()
+    try:
+        trip = session.get(Trip, trip_id)
+        if not trip:
+            abort(404, "Trip not found")
+        session.delete(trip)
+        session.commit()
+        flash("Trip deleted.", "success")
+        return redirect(url_for("main.list_trips_page"))
+    finally:
+        session.close()
+
+
 @bp.post("/trips/<int:trip_id>/days")
 def create_day_page(trip_id: int):
     session = get_session()
@@ -680,6 +835,8 @@ def create_day_page(trip_id: int):
             trip=trip,
             date=parse_date(request.form.get("date")),
             hotel_name=optional_str(request.form.get("hotel_name")),
+            hotel_location=optional_str(request.form.get("hotel_location")),
+            hotel_description=optional_str(request.form.get("hotel_description")),
             hotel_reservation_id=optional_str(request.form.get("hotel_reservation_id")),
             hotel_price=parse_float(request.form.get("hotel_price")),
             hotel_link=optional_str(request.form.get("hotel_link")),
@@ -737,6 +894,8 @@ def update_day_page(day_id: int):
 
         day.date = parse_date(request.form.get("date"))
         day.hotel_name = optional_str(request.form.get("hotel_name"))
+        day.hotel_location = optional_str(request.form.get("hotel_location"))
+        day.hotel_description = optional_str(request.form.get("hotel_description"))
         day.hotel_reservation_id = optional_str(
             request.form.get("hotel_reservation_id")
         )
