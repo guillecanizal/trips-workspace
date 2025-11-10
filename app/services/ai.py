@@ -37,6 +37,8 @@ def _format_prompt(trip_name: str, description: str | None, days: list[date]) ->
         + days_str
         + "\nFor each date produce a place to stay (city or hotel idea) and at least 2-3 thoughtful activities that fit the day."
         + " Cover every listed date exactly once and avoid repeating earlier days."
+        + "\nWhen recommending hotels include location (city/area) and a concise description."
+        + "\nFor travel logistics (flights, rentals, ferries, etc.) add entries to general_items."
     )
 
 
@@ -45,13 +47,21 @@ def _build_messages(prompt: str) -> list[dict[str, str]]:
         "days": [
             {
                 "date": "YYYY-MM-DD",
-                "hotel": {"name": "", "notes": ""},
+                "hotel": {
+                    "name": "",
+                    "location": "",
+                    "description": "",
+                    "notes": ""
+                },
                 "activities": [
                     {
                         "name": "",
                         "summary": "",
                         "details": "",
                         "estimated_time_hours": 0,
+                        "price": None,
+                        "reservation_id": None,
+                        "link": ""
                     }
                 ],
             }
@@ -61,6 +71,9 @@ def _build_messages(prompt: str) -> list[dict[str, str]]:
                 "name": "",
                 "description": "",
                 "reservation_id": None,
+                "price": None,
+                "link": "",
+                "maps_link": ""
             }
         ],
     }
@@ -70,10 +83,12 @@ def _build_messages(prompt: str) -> list[dict[str, str]]:
             "- Avoid extra commentary or text outside the JSON.",
             "- Each date must appear exactly once.",
             "- If all days belong to the same city, use ONE consistent hotel (same 'name' and 'notes') for all days.",
+            "- Always include hotel 'location' and 'description' fields.",
             "- Change hotels ONLY when the itinerary moves between different cities or regions.",
             "- When the trip involves multiple locations by car, ensure each next location is within approximately 200–300 km from the previous one.",
             "- Activities must be unique, relevant, and family-friendly if context suggests children are included.",
             "- Always provide at least 2–3 thoughtful activities per day.",
+            "- Populate every provided field; use null when data is unknown.",
         ]
     )
     system_prompt = (

@@ -6,21 +6,27 @@
     <title>Trip Planner</title>
     <style>
       :root {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        color: #1f2933;
-        background-color: #f8fafc;
+        font-family: "IBM Plex Sans", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #0f172a;
+        background-color: #f4f6fb;
+        font-size: 15px;
+      }
+      * {
+        box-sizing: border-box;
       }
       body {
         margin: 0;
+        background-color: #f4f6fb;
       }
       header {
-        background: #1d4ed8;
+        background: linear-gradient(120deg, #111827, #1d4ed8);
         color: white;
-        padding: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.2);
       }
       main {
-        padding: 1.5rem;
-        max-width: 900px;
+        padding: 2rem;
+        max-width: 1100px;
         margin: 0 auto;
       }
       a {
@@ -30,8 +36,9 @@
         margin-bottom: 1.5rem;
         padding: 1rem;
         background: white;
-        border-radius: 0.5rem;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
+        border-radius: 0.75rem;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        border: 1px solid #e2e8f0;
       }
       label {
         font-weight: 600;
@@ -39,101 +46,179 @@
         margin-top: 0.75rem;
       }
       input,
-      textarea {
+      textarea,
+      select {
         width: 100%;
-        padding: 0.5rem;
+        padding: 0.65rem 0.75rem;
         margin-top: 0.25rem;
         border: 1px solid #cbd5f5;
-        border-radius: 0.375rem;
-        box-sizing: border-box;
+        border-radius: 0.55rem;
+        background: #f8fafc;
+        font-size: 0.95rem;
+      }
+      input[readonly],
+      textarea[readonly] {
+        background: #f1f5f9;
+        color: #475569;
+        cursor: pointer;
       }
       button {
         margin-top: 1rem;
-        padding: 0.5rem 1rem;
+        padding: 0.6rem 1.2rem;
         border: none;
-        border-radius: 0.375rem;
+        border-radius: 0.45rem;
         background: #1d4ed8;
         color: white;
         cursor: pointer;
+        font-weight: 600;
+        box-shadow: 0 4px 14px rgba(29, 78, 216, 0.25);
       }
       button.secondary {
         background: #475569;
       }
       button.danger {
-        background: #dc2626;
+        background: #b91c1c;
       }
-      .inline-form {
+      .grid {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      }
+      .trip-card {
+        border-radius: 1rem;
+        padding: 1.25rem;
+        background: white;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 14px 35px rgba(15, 23, 42, 0.08);
         display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+      }
+      .trip-card h2 {
+        margin: 0;
+        font-size: 1.3rem;
+      }
+      .trip-meta {
+        display: flex;
+        flex-wrap: wrap;
         gap: 0.5rem;
-        align-items: center;
+        color: #475569;
+        font-size: 0.9rem;
       }
-      .inline-form button {
-        margin-top: 0;
+      .pill {
+        background: #eef2ff;
+        padding: 0.25rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
       }
-      .card {
-        background: white;
-        border-radius: 0.5rem;
+      .section-card {
+        margin-bottom: 1.25rem;
         padding: 1rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
-      }
-      details {
         background: white;
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
-        padding: 0.25rem 0.75rem 0.75rem;
+        border-radius: 0.75rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
       }
-      details summary {
+      details.trip-panel {
+        border-radius: 1rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+        background: white;
+        margin-bottom: 1.5rem;
+        padding: 0 1.25rem 1rem;
+      }
+      details.trip-panel summary {
         cursor: pointer;
         list-style: none;
-        font-weight: 600;
-        padding: 0.75rem 0;
         display: flex;
         justify-content: space-between;
         align-items: center;
-      }
-      details[open] summary {
-        border-bottom: 1px solid #e2e8f0;
-        margin-bottom: 0.75rem;
-      }
-      details summary::-webkit-details-marker {
-        display: none;
-      }
-      .trip-summary-title {
-        display: flex;
-        flex-direction: column;
-      }
-      .summary-meta {
-        font-size: 0.85rem;
-        color: #475569;
-      }
-      .panel-body {
-        padding-top: 0.5rem;
-      }
-      .day-summary {
-        border: 1px solid #e2e8f0;
-        border-radius: 0.375rem;
-        padding: 0.75rem;
-        margin-top: 0.75rem;
-        background: #f8fafc;
-      }
-      .day-panel summary {
+        padding: 1rem 0;
         font-weight: 600;
       }
-      .day-panel .panel-body {
-        padding-top: 0.25rem;
+      details.trip-panel[open] summary {
+        border-bottom: 1px solid #e2e8f0;
+        margin-bottom: 1rem;
+      }
+      details.trip-panel summary::-webkit-details-marker { display:none; }
+      .table-like {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 0.5rem;
+      }
+      .table-like th,
+      .table-like td {
+        border-bottom: 1px solid #e2e8f0;
+        padding: 0.6rem 0.75rem;
+        text-align: left;
+      }
+      .inline-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+        padding: 0.5rem 0;
+      }
+      .inline-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .inline-wrapper {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.5rem;
+        width: 100%;
+      }
+      .inline-delete {
+        margin-top: 0.3rem;
+      }
+      .action-icons {
+        display: flex;
+        gap: 0.4rem;
+      }
+      .icon-button {
+        background: transparent;
+        border: none;
+        color: #475569;
+        cursor: pointer;
+        font-size: 0.9rem;
+        padding: 0.2rem;
+      }
+      .icon-button.danger {
+        color: #b91c1c;
+      }
+      .icon-button.save {
+        color: #166534;
+      }
+      .icon-button.add {
+        color: #1d4ed8;
+      }
+      .inline-form input,
+      .inline-form textarea,
+      .inline-form select {
+        background: transparent;
+        border: none;
+        padding: 0;
+        margin: 0;
+      }
+      .inline-form.readonly input,
+      .inline-form.readonly textarea,
+      .inline-form.readonly select {
+        pointer-events: none;
+        color: #475569;
       }
       .flash-container {
         margin: 1rem auto;
-        max-width: 900px;
+        max-width: 1100px;
       }
       .flash {
-        padding: 0.75rem 1rem;
-        border-radius: 0.375rem;
-        margin-bottom: 0.5rem;
+        padding: 0.9rem 1.1rem;
+        border-radius: 0.45rem;
+        margin-bottom: 0.6rem;
         color: #0f172a;
-        background: #dbeafe;
       }
       .flash-success {
         background: #dcfce7;
@@ -142,36 +227,6 @@
       .flash-error {
         background: #fee2e2;
         border: 1px solid #f87171;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 0.5rem;
-      }
-      th,
-      td {
-        border: 1px solid #e2e8f0;
-        padding: 0.4rem;
-        text-align: left;
-      }
-      .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 0.75rem;
-        margin: 0.75rem 0 1rem;
-      }
-      .stat-card {
-        background: #eef2ff;
-        border-radius: 0.5rem;
-        padding: 0.75rem;
-      }
-      .stat-card span {
-        display: block;
-        font-size: 0.85rem;
-        color: #475569;
-      }
-      .stat-card strong {
-        font-size: 1.2rem;
       }
     </style>
   </head>
@@ -191,5 +246,36 @@
       {% endwith %}
       {% block content %}{% endblock %}
     </main>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('[data-inline-form]').forEach((form) => {
+          form.classList.add('readonly');
+          const toggleEditable = () => {
+            form.classList.remove('readonly');
+            form.querySelectorAll('input, textarea, select').forEach((el) => {
+              el.removeAttribute('readonly');
+              el.removeAttribute('disabled');
+            });
+            const submit = form.querySelector('.inline-save');
+            if (submit) {
+              submit.disabled = false;
+            }
+          };
+          form.addEventListener('dblclick', toggleEditable);
+        });
+
+        const aiForm = document.getElementById('ai-generate-form');
+        if (aiForm) {
+          const button = aiForm.querySelector('button');
+          aiForm.addEventListener('submit', () => {
+            if (button) {
+              button.disabled = true;
+              button.dataset.originalText = button.textContent;
+              button.textContent = 'Generating…';
+            }
+          });
+        }
+      });
+    </script>
   </body>
 </html>

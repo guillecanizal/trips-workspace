@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from pathlib import Path
+import json
 
 from flask import (Blueprint, abort, current_app, flash, jsonify, redirect,
                    render_template, request, url_for)
@@ -185,6 +187,48 @@ def apply_ai_payload(session, trip: Trip, payload: dict) -> dict[str, int]:
         summary["general_items"] += 1
 
     return summary
+
+
+def reset_trip_content(session, trip: Trip) -> None:
+    for item in list(trip.general_items):
+        session.delete(item)
+
+    for day in trip.days:
+        for activity in list(day.activities):
+            session.delete(activity)
+        day.hotel_name = None
+        day.hotel_location = None
+        day.hotel_description = None
+        day.hotel_reservation_id = None
+        day.hotel_price = None
+        day.hotel_link = None
+        day.hotel_maps_link = None
+        day.hotel_cancelable = None
+        day.distance_km = None
+        day.distance_hours = None
+        day.distance_minutes = None
+
+
+def load_latest_ai_log(trip_id: int) -> dict[str, str] | None:
+    logs_dir = Path("logs") / f"trip_{trip_id}"
+    if not logs_dir.exists():
+        return None
+    response_files = sorted(
+        logs_dir.glob("*_response.json"), key=lambda p: p.name, reverse=True
+    )
+    if not response_files:
+        return None
+    response_file = response_files[0]
+    timestamp = response_file.name.split("_response.json")[0]
+    prompt_file = logs_dir / f"{timestamp}_prompt.txt"
+    prompt_text = prompt_file.read_text() if prompt_file.exists() else ""
+    response_text = response_file.read_text()
+    return {
+        "prompt": prompt_text,
+        "response": response_text,
+        "prompt_file": str(prompt_file),
+        "response_file": str(response_file),
+    }
 
 
 @bp.route("/")
@@ -714,12 +758,14 @@ def view_trip_page(trip_id: int):
             trip.general_items,
             key=lambda item: ((item.name or "").lower(), item.id),
         )
+        ai_log = load_latest_ai_log(trip.id)
         return render_template(
             "trip_detail.html",
             trip=trip,
             days=ordered_days,
             general_items=general_items,
             can_generate_ai=trip_is_empty(trip),
+            ai_log=ai_log,
         )
     finally:
         session.close()
@@ -760,6 +806,7 @@ def generate_trip_ai(trip_id: int):
             flash(f"AI generation failed: {exc}", "error")
             return redirect(url_for("main.view_trip_page", trip_id=trip.id))
 
+        reset_trip_content(session, trip)
         summary = apply_ai_payload(session, trip, payload)
         session.commit()
         current_app.logger.info(
@@ -774,6 +821,38 @@ def generate_trip_ai(trip_id: int):
         )
         flash(
             "AI itinerary added: "
+            f"{summary['days']} days, {summary['activities']} activities, {summary['general_items']} general items.",
+            "success",
+        )
+        return redirect(url_for("main.view_trip_page", trip_id=trip.id))
+    finally:
+        session.close()
+
+
+@bp.post("/trips/<int:trip_id>/apply-ai-response")
+def apply_ai_response(trip_id: int):
+    session = get_session()
+    try:
+        trip = session.get(Trip, trip_id)
+        if not trip:
+            abort(404, "Trip not found")
+
+        raw_response = request.form.get("ai_response_text") or ""
+        if not raw_response.strip():
+            flash("Paste a JSON response before saving.", "error")
+            return redirect(url_for("main.view_trip_page", trip_id=trip.id))
+
+        try:
+            payload = json.loads(raw_response)
+        except json.JSONDecodeError as exc:
+            flash(f"Invalid JSON: {exc}", "error")
+            return redirect(url_for("main.view_trip_page", trip_id=trip.id))
+
+        reset_trip_content(session, trip)
+        summary = apply_ai_payload(session, trip, payload)
+        session.commit()
+        flash(
+            "AI itinerary applied: "
             f"{summary['days']} days, {summary['activities']} activities, {summary['general_items']} general items.",
             "success",
         )

@@ -49,7 +49,7 @@ Use the HTML UI at `/trips` for quick manual testing—create a trip (dates are 
 
 ## Optional AI itinerary generator
 
-- Install [Ollama](https://ollama.com/) locally and pull a chat model (default `llama3.1`).
+- Install [Ollama](https://ollama.com/) locally and pull a chat model (default `mistral`).
 - Install `langchain-ollama` (already listed in `requirements.txt`).
 - (Optional) set `OLLAMA_MODEL` to point at a different local model name.
-- On an empty trip, click **Generate itinerary with AI** to have the model suggest daily stay ideas plus multiple activities; the raw JSON response is saved under `logs/` and the Flask console logs will show success/error summaries.
+- On an empty trip, click **Generate itinerary with AI** to have the model suggest daily stay ideas plus multiple activities; the raw JSON response and prompt are saved under `logs/`, surfaced on the trip page, and you can edit/paste another JSON response before applying it.

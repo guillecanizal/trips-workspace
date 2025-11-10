@@ -3,143 +3,112 @@
 {% block content %}
   <h1>Trips</h1>
 
-  {% if trip_summaries %}
-    {% for summary in trip_summaries %}
-      {% set trip = summary.trip %}
-      {% set days = summary.days %}
-      {% set general_items = summary.general_items %}
-      {% set stats = summary.stats %}
-      <details class="trip-panel">
-        <summary>
-          <div class="trip-summary-title">
-            <span><a href="{{ url_for('main.view_trip_page', trip_id=trip.id) }}">{{ trip.name }}</a></span>
-            <span class="summary-meta">{{ trip.description or "No description yet" }}</span>
-          </div>
-          <div class="summary-meta">
-            {{ trip.start_date or "?" }} → {{ trip.end_date or "?" }} · {{ stats.day_count }} días
-          </div>
-        </summary>
-
-        <div class="panel-body">
-          <div class="stats-grid">
-            <div class="stat-card">
-              <span>Total price</span>
-              <strong>{{ (stats.total_price or 0) | round(2) }}</strong>
-            </div>
-            <div class="stat-card">
-            <span>Total distance</span>
-            <strong>{{ (stats.total_distance_km or 0) | round(1) }} km</strong>
-          </div>
-          <div class="stat-card">
-            <span>Days</span>
-            <strong>{{ stats.day_count }}</strong>
-          </div>
-          <div class="stat-card">
-            <span>Activities</span>
-            <strong>{{ stats.activity_count }}</strong>
-          </div>
-          <div class="stat-card">
-            <span>General items</span>
-            <strong>{{ stats.general_item_count }}</strong>
-          </div>
-          </div>
-
-          {% if general_items %}
-            <div class="general-items">
-            <h3>General items</h3>
-            <table class="compact">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Description</th>
-                  <th>Reservation</th>
-                  <th>Price</th>
-                  <th>Cancelable</th>
-                  <th>Links</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for item in general_items %}
-                  <tr>
-                    <td>{{ item.name }}</td>
-                    <td>{{ item.description or "-" }}</td>
-                    <td>{{ item.reservation_id or "-" }}</td>
-                    <td>{{ item.price or "-" }}</td>
-                    <td>
-                      {{ "Yes" if item.cancelable is not none and item.cancelable else ("No" if item.cancelable is not none else "Unknown") }}
-                    </td>
-                    <td>
-                      {% if item.link %}
-                        <a href="{{ item.link }}" target="_blank" rel="noreferrer">Details</a>
-                      {% endif %}
-                      {% if item.maps_link %}
-                        <a href="{{ item.maps_link }}" target="_blank" rel="noreferrer">Maps</a>
-                      {% endif %}
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-          {% else %}
-            <p>No general items yet.</p>
-          {% endif %}
-
-          {% if days %}
-            <div>
-              {% for day in days %}
-                <details class="day-summary day-panel">
-                  <summary>Day {{ loop.index }} – {{ day.date or "Unscheduled" }}</summary>
-                  <div class="panel-body">
-                    <div>Hotel: {{ day.hotel_name or "-" }}</div>
-                    <div>Reservation: {{ day.hotel_reservation_id or "-" }}</div>
-                    <div>Price: {{ day.hotel_price or "-" }}</div>
-                    <div>
-                      Links:
-                      {% if day.hotel_link %}
-                        <a href="{{ day.hotel_link }}" target="_blank" rel="noreferrer">Hotel</a>
-                      {% endif %}
-                      {% if day.hotel_maps_link %}
-                        <a href="{{ day.hotel_maps_link }}" target="_blank" rel="noreferrer">Map</a>
-                      {% endif %}
-                      {% if not day.hotel_link and not day.hotel_maps_link %}
-                        -
-                      {% endif %}
-                    </div>
-                    <div>Distance: {{ day.distance_km or 0 }} km</div>
-                    {% if day.activities %}
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Activity</th>
-                            <th>Price</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {% for activity in day.activities %}
-                            <tr>
-                              <td>{{ activity.name }}</td>
-                              <td>{{ activity.price or "-" }}</td>
-                            </tr>
-                          {% endfor %}
-                        </tbody>
-                      </table>
-                    {% else %}
-                      <p>No activities yet.</p>
-                    {% endif %}
-                  </div>
-                </details>
-              {% endfor %}
-            </div>
-          {% else %}
-            <p>No days yet.</p>
-          {% endif %}
+{% if trip_summaries %}
+  {% for summary in trip_summaries %}
+    {% set trip = summary.trip %}
+    {% set days = summary.days %}
+    {% set general_items = summary.general_items %}
+    {% set stats = summary.stats %}
+    <details class="trip-panel" style="margin-bottom:2rem;">
+      <summary>
+        <div>
+          <strong>{{ trip.name }}</strong>
+          <small style="display:block;color:#94a3b8;">{{ trip.description or "No description yet" }}</small>
         </div>
-      </details>
-    {% endfor %}
-  {% else %}
-    <p>No trips yet. Use the form below to create one.</p>
-  {% endif %}
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <div class="trip-meta">
+            <span class="pill">{{ trip.start_date or "?" }} → {{ trip.end_date or "?" }}</span>
+            <span class="pill">{{ stats.day_count }} days</span>
+            <span class="pill">{{ stats.activity_count }} activities</span>
+            <span class="pill">{{ stats.general_item_count }} items</span>
+          </div>
+          <a class="icon-button" href="{{ url_for('main.view_trip_page', trip_id=trip.id) }}" title="Open trip">✏️</a>
+        </div>
+      </summary>
+      <div class="panel-body">
+      <div>
+        <h3>General items</h3>
+        {% if general_items %}
+          <table class="table-like">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Reservation</th>
+                <th>Price</th>
+                <th>Links</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in general_items %}
+                <tr>
+                  <td>{{ item.name }}</td>
+                  <td>{{ item.description or "-" }}</td>
+                  <td>{{ item.reservation_id or "-" }}</td>
+                  <td>{{ item.price or "-" }}</td>
+                  <td>
+                    {% if item.link %}
+                      <a href="{{ item.link }}" target="_blank" rel="noreferrer">Details</a>
+                    {% endif %}
+                    {% if item.maps_link %}
+                      <a href="{{ item.maps_link }}" target="_blank" rel="noreferrer">Map</a>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p style="color:#94a3b8;">No general items yet.</p>
+        {% endif %}
+      </div>
+
+      <div style="margin-top:1.5rem;">
+        <h3>Days</h3>
+        {% if days %}
+          {% for day in days %}
+            <div class="card" style="margin-bottom:0.75rem;">
+              <strong>Day {{ loop.index }} – {{ day.date or "Unscheduled" }}</strong>
+              <div>Hotel: {{ day.hotel_name or "-" }}</div>
+              <div>Location: {{ day.hotel_location or "-" }}</div>
+              <div>Description: {{ day.hotel_description or "-" }}</div>
+              <div>Distance: {{ day.distance_km or 0 }} km</div>
+              {% if day.activities %}
+                <table class="table-like" style="margin-top:0.5rem;">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Description</th>
+                      <th>Price</th>
+                      <th>Reservation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for activity in day.activities %}
+                      <tr>
+                        <td>{{ activity.name }}</td>
+                        <td>{{ activity.description or "-" }}</td>
+                        <td>{{ activity.price or "-" }}</td>
+                        <td>{{ activity.reservation_id or "-" }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              {% else %}
+                <p style="color:#94a3b8;">No activities yet.</p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <p style="color:#94a3b8;">No days yet.</p>
+        {% endif %}
+      </div>
+      </div>
+    </details>
+  {% endfor %}
+{% else %}
+  <p>No trips yet. Use the form below to create one.</p>
+{% endif %}
 
   <form method="post">
     <h2>Create a new trip</h2>
