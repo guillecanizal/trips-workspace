@@ -92,6 +92,7 @@ class Activity(Base):
     day_id: Mapped[int] = mapped_column(ForeignKey("days.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    location: Mapped[str | None] = mapped_column(String(255), nullable=True)
     price: Mapped[float | None] = mapped_column(Float, nullable=True)
     reservation_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     link: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -106,6 +107,7 @@ class Activity(Base):
             "day_id": self.day_id,
             "name": self.name,
             "description": self.description,
+            "location": self.location,
             "price": self.price,
             "reservation_id": self.reservation_id,
             "link": self.link,

@@ -135,6 +135,13 @@
     {% for day in days %}
       <details class="trip-panel collapsible">
         <summary>Day {{ loop.index }} – {{ day.date or "Unscheduled day" }}</summary>
+        <div class="inline-row" style="justify-content:flex-start;gap:0.6rem;margin:0.4rem 0 0.8rem;">
+          <strong>Hotel location:</strong>
+          <span>{{ day.hotel_location or "Unknown location" }}</span>
+          {% if day.hotel_maps_link %}
+            <a href="{{ day.hotel_maps_link }}" target="_blank" rel="noreferrer" class="icon-button" title="Open hotel in Google Maps">🗺️</a>
+          {% endif %}
+        </div>
         <form data-inline-form method="post" action="{{ url_for('main.update_day_page', day_id=day.id) }}" class="inline-form">
           <input name="date" type="date" value="{{ day.date.isoformat() if day.date else '' }}" readonly />
           <input name="hotel_name" value="{{ day.hotel_name or '' }}" placeholder="Hotel name" readonly />
@@ -163,34 +170,41 @@
           <h4>Activities</h4>
           {% if day.activities %}
             {% for activity in day.activities %}
-              <div class="inline-wrapper">
-                <form data-inline-form method="post" action="{{ url_for('main.update_activity_page', activity_id=activity.id) }}" class="inline-form">
-                  <input name="name" value="{{ activity.name }}" required readonly />
-                  <textarea name="description" rows="2" readonly>{{ activity.description or '' }}</textarea>
-                  <input name="price" type="number" step="0.01" value="{{ activity.price or '' }}" placeholder="Price" readonly />
-                  <input name="reservation_id" value="{{ activity.reservation_id or '' }}" placeholder="Reservation" readonly />
-                  <input name="link" type="url" value="{{ activity.link or '' }}" placeholder="Link" readonly />
-                  <div class="action-icons">
-                    <button type="submit" class="icon-button save inline-save" disabled aria-label="Save activity">💾</button>
-                    <button form="delete-activity-{{ activity.id }}" type="submit" class="icon-button danger" aria-label="Delete activity">🗑</button>
-                  </div>
-                </form>
-              </div>
+                <div class="inline-wrapper">
+                  <form data-inline-form method="post" action="{{ url_for('main.update_activity_page', activity_id=activity.id) }}" class="inline-form">
+                    <input name="name" value="{{ activity.name }}" required readonly />
+                    <input name="location" value="{{ activity.location or '' }}" placeholder="Location" readonly />
+                    <textarea name="description" rows="2" readonly>{{ activity.description or '' }}</textarea>
+                    <input name="price" type="number" step="0.01" value="{{ activity.price or '' }}" placeholder="Price" readonly />
+                    <input name="reservation_id" value="{{ activity.reservation_id or '' }}" placeholder="Reservation" readonly />
+                    <input name="link" type="url" value="{{ activity.link or '' }}" placeholder="Link" readonly />
+                    <input name="maps_link" type="url" value="{{ activity.maps_link or '' }}" placeholder="Maps link" readonly />
+                    <div class="action-icons">
+                      {% if activity.maps_link %}
+                        <a href="{{ activity.maps_link }}" target="_blank" rel="noreferrer" class="icon-button" title="Open activity in Google Maps">🗺️</a>
+                      {% endif %}
+                      <button type="submit" class="icon-button save inline-save" disabled aria-label="Save activity">💾</button>
+                      <button form="delete-activity-{{ activity.id }}" type="submit" class="icon-button danger" aria-label="Delete activity">🗑</button>
+                    </div>
+                  </form>
+                </div>
             {% endfor %}
           {% else %}
             <p>No activities yet.</p>
           {% endif %}
 
-          <form method="post" action="{{ url_for('main.create_activity_page', day_id=day.id) }}">
-            <div class="inline-form">
-              <input name="name" placeholder="Activity name" required />
-              <textarea name="description" rows="2" placeholder="Description"></textarea>
-              <input name="price" type="number" step="0.01" placeholder="Price" />
-              <input name="reservation_id" placeholder="Reservation" />
-              <input name="link" type="url" placeholder="Link" />
-              <button type="submit" class="icon-button" aria-label="Add activity">➕</button>
-            </div>
-          </form>
+            <form method="post" action="{{ url_for('main.create_activity_page', day_id=day.id) }}">
+              <div class="inline-form">
+                <input name="name" placeholder="Activity name" required />
+                <input name="location" placeholder="Location" />
+                <textarea name="description" rows="2" placeholder="Description"></textarea>
+                <input name="price" type="number" step="0.01" placeholder="Price" />
+                <input name="reservation_id" placeholder="Reservation" />
+                <input name="link" type="url" placeholder="Link" />
+                <input name="maps_link" type="url" placeholder="Maps link" />
+                <button type="submit" class="icon-button" aria-label="Add activity">➕</button>
+              </div>
+            </form>
         </div>
       </details>
     {% endfor %}

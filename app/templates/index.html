@@ -73,7 +73,12 @@
             <div class="card" style="margin-bottom:0.75rem;">
               <strong>Day {{ loop.index }} – {{ day.date or "Unscheduled" }}</strong>
               <div>Hotel: {{ day.hotel_name or "-" }}</div>
-              <div>Location: {{ day.hotel_location or "-" }}</div>
+              <div>
+                Location: {{ day.hotel_location or "-" }}
+                {% if day.hotel_maps_link %}
+                  · <a href="{{ day.hotel_maps_link }}" target="_blank" rel="noreferrer">Map</a>
+                {% endif %}
+              </div>
               <div>Description: {{ day.hotel_description or "-" }}</div>
               <div>Distance: {{ day.distance_km or 0 }} km</div>
               {% if day.activities %}
@@ -81,18 +86,28 @@
                   <thead>
                     <tr>
                       <th>Name</th>
+                      <th>Location</th>
                       <th>Description</th>
                       <th>Price</th>
                       <th>Reservation</th>
+                      <th>Map</th>
                     </tr>
                   </thead>
                   <tbody>
                     {% for activity in day.activities %}
                       <tr>
                         <td>{{ activity.name }}</td>
+                        <td>{{ activity.location or "-" }}</td>
                         <td>{{ activity.description or "-" }}</td>
                         <td>{{ activity.price or "-" }}</td>
                         <td>{{ activity.reservation_id or "-" }}</td>
+                        <td>
+                          {% if activity.maps_link %}
+                            <a href="{{ activity.maps_link }}" target="_blank" rel="noreferrer">Map</a>
+                          {% else %}
+                            -
+                          {% endif %}
+                        </td>
                       </tr>
                     {% endfor %}
                   </tbody>

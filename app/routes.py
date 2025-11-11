@@ -18,6 +18,7 @@ from reportlab.pdfgen import canvas
 
 from .models import Activity, Day, GeneralItem, Trip
 from .services.ai import AIGenerationError, generate_itinerary
+from .utils.maps import enrich_with_maps_links
 
 
 bp = Blueprint("main", __name__)
@@ -185,6 +186,7 @@ def apply_ai_payload(session, trip: Trip, payload: dict) -> dict[str, int]:
             day.hotel_location = hotel.get("location")
         if hotel.get("notes") or hotel.get("description"):
             day.hotel_description = hotel.get("notes") or hotel.get("description")
+        day.hotel_maps_link = optional_str(hotel.get("maps_link")) if hotel.get("maps_link") else None
 
         for activity_info in day_info.get("activities", []) or []:
             name = (activity_info.get("name") or "").strip()
@@ -199,7 +201,11 @@ def apply_ai_payload(session, trip: Trip, payload: dict) -> dict[str, int]:
                     or activity_info.get("description")
                     or None
                 ),
+                location=optional_str(activity_info.get("location")),
                 price=_safe_float(activity_info.get("price")),
+                reservation_id=optional_str(activity_info.get("reservation_id")),
+                link=optional_str(activity_info.get("link")),
+                maps_link=optional_str(activity_info.get("maps_link")),
             )
             session.add(activity)
             summary["activities"] += 1
@@ -508,6 +514,7 @@ def api_create_activity(day_id: int):
             day=day,
             name=name,
             description=optional_str(payload.get("description")),
+            location=optional_str(payload.get("location")),
             price=parse_float(payload.get("price")),
             reservation_id=optional_str(payload.get("reservation_id")),
             link=optional_str(payload.get("link")),
@@ -550,6 +557,7 @@ def api_update_activity(activity_id: int):
             activity.name = name
         for attr in [
             "description",
+            "location",
             "price",
             "reservation_id",
             "link",
@@ -560,7 +568,7 @@ def api_update_activity(activity_id: int):
                 value = payload.get(attr)
                 if attr == "price":
                     value = parse_float(value)
-                elif attr in {"description", "reservation_id", "link", "maps_link"}:
+                elif attr in {"description", "location", "reservation_id", "link", "maps_link"}:
                     value = optional_str(value)
                 elif attr == "cancelable":
                     value = parse_bool(value)
@@ -822,28 +830,40 @@ def export_trip_pdf(trip_id: int):
         buffer = BytesIO()
         pdf = canvas.Canvas(buffer, pagesize=letter)
         _, height = letter
+        left_margin = 50
+        line_height = 14
+        current_y = height - 60
 
-        def new_text_object():
-            obj = pdf.beginText(50, height - 60)
-            obj.setFont("Helvetica", 11)
-            return obj
-
-        text_obj = new_text_object()
-
-        def ensure_space():
-            nonlocal text_obj
-            if text_obj.getY() <= 60:
-                pdf.drawText(text_obj)
+        def ensure_space(lines: int = 1):
+            nonlocal current_y
+            if current_y - (line_height * lines) < 40:
                 pdf.showPage()
-                text_obj = new_text_object()
+                current_y = height - 60
 
         def add_line(content: str = "", *, font: str = "Helvetica", size: int = 11, wrap: int = 90):
-            nonlocal text_obj
-            text_obj.setFont(font, size)
-            segments = textwrap.wrap(content, wrap) if content else [""]
-            for segment in segments:
-                text_obj.textLine(segment)
+            nonlocal current_y
+            pdf.setFont(font, size)
+            if not content:
                 ensure_space()
+                current_y -= line_height
+                return
+            segments = textwrap.wrap(content, wrap) or [content]
+            for segment in segments:
+                ensure_space()
+                pdf.drawString(left_margin, current_y, segment)
+                current_y -= line_height
+
+        def add_link_line(label: str, url: str | None, *, font: str = "Helvetica", size: int = 11):
+            nonlocal current_y
+            if not url:
+                return
+            text = f"{label}: Open in Google Maps"
+            width = pdf.stringWidth(text, font, size)
+            ensure_space()
+            pdf.setFont(font, size)
+            pdf.drawString(left_margin, current_y, text)
+            pdf.linkURL(url, (left_margin, current_y - 2, left_margin + width, current_y + 10))
+            current_y -= line_height
 
         add_line(trip.name, font="Helvetica-Bold", size=18)
         add_line(f"{trip.start_date or '?'} → {trip.end_date or '?'}", size=12)
@@ -870,8 +890,7 @@ def export_trip_pdf(trip_id: int):
                     add_line(f"  Price: {'%.2f' % item.price}")
                 if item.link:
                     add_line(f"  Link: {item.link}")
-                if item.maps_link:
-                    add_line(f"  Maps: {item.maps_link}")
+                add_link_line("  Map", item.maps_link)
                 add_line()
         else:
             add_line("No general items recorded.")
@@ -881,6 +900,7 @@ def export_trip_pdf(trip_id: int):
             add_line(f"Day {index} – {day.date or 'Unscheduled day'}", font="Helvetica-Bold", size=14)
             add_line(f"Hotel: {day.hotel_name or '-'}")
             add_line(f"Location: {day.hotel_location or '-'}")
+            add_link_line("Map", day.hotel_maps_link)
             if day.hotel_description:
                 add_line(f"Description: {day.hotel_description}")
             if day.hotel_reservation_id:
@@ -901,6 +921,8 @@ def export_trip_pdf(trip_id: int):
                 add_line("Activities:", font="Helvetica-Bold", size=12)
                 for activity in day.activities:
                     add_line(f"  • {activity.name}", font="Helvetica-Bold", size=11)
+                    if activity.location:
+                        add_line(f"    Location: {activity.location}")
                     if activity.description:
                         add_line(f"    {activity.description}")
                     details = []
@@ -912,12 +934,12 @@ def export_trip_pdf(trip_id: int):
                         add_line("    " + " | ".join(details))
                     if activity.link:
                         add_line(f"    Link: {activity.link}")
+                    add_link_line("    Map", activity.maps_link)
                 add_line()
             else:
                 add_line("No activities planned.")
                 add_line()
 
-        pdf.drawText(text_obj)
         pdf.save()
         buffer.seek(0)
 
@@ -969,6 +991,7 @@ def generate_trip_ai(trip_id: int):
             flash(f"AI generation failed: {exc}", "error")
             return redirect(url_for("main.view_trip_page", trip_id=trip.id))
 
+        payload = enrich_with_maps_links(payload)
         reset_trip_content(session, trip)
         summary = apply_ai_payload(session, trip, payload)
         session.commit()
@@ -1011,6 +1034,7 @@ def apply_ai_response(trip_id: int):
             flash(f"Invalid JSON: {exc}", "error")
             return redirect(url_for("main.view_trip_page", trip_id=trip.id))
 
+        payload = enrich_with_maps_links(payload)
         reset_trip_content(session, trip)
         summary = apply_ai_payload(session, trip, payload)
         session.commit()
@@ -1227,6 +1251,7 @@ def create_activity_page(day_id: int):
             day=day,
             name=name,
             description=optional_str(request.form.get("description")),
+            location=optional_str(request.form.get("location")),
             price=parse_float(request.form.get("price")),
             reservation_id=optional_str(request.form.get("reservation_id")),
             link=optional_str(request.form.get("link")),
@@ -1252,6 +1277,7 @@ def update_activity_page(activity_id: int):
         if name:
             activity.name = name
         activity.description = optional_str(request.form.get("description"))
+        activity.location = optional_str(request.form.get("location"))
         activity.price = parse_float(request.form.get("price"))
         activity.reservation_id = optional_str(request.form.get("reservation_id"))
         activity.link = optional_str(request.form.get("link"))
