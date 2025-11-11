@@ -15,32 +15,11 @@
     <span class="pill">{{ stats.total_distance_km or 0 }} km</span>
   </div>
 
-  <details class="trip-panel collapsible">
-    <summary>AI assistant</summary>
-    <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;">
-      <span style="font-weight:600;">AI controls</span>
-      {% if can_generate_ai %}
-        <form id="ai-generate-form" method="post" action="{{ url_for('main.generate_trip_ai', trip_id=trip.id) }}">
-          <button type="submit" class="icon-button add" aria-label="Generate itinerary">⚙️</button>
-        </form>
-      {% else %}
-        <small style="color:#94a3b8;">AI generation only available for empty trips</small>
-      {% endif %}
-    </div>
-    <div class="ai-log" style="display:grid;gap:0.75rem;">
-      <label>Last prompt</label>
-      <textarea rows="6" readonly>{{ ai_log.prompt if ai_log else "No prompt available yet." }}</textarea>
-      <label>Last response</label>
-      <textarea rows="8" readonly>{{ ai_log.response if ai_log else "No response available yet." }}</textarea>
-    </div>
-    <form method="post" action="{{ url_for('main.apply_ai_response', trip_id=trip.id) }}">
-      <label for="ai_response_text">Use/modify AI response JSON</label>
-      <textarea id="ai_response_text" name="ai_response_text" rows="10" placeholder="Paste or edit JSON before applying.">{{ ai_log.response if ai_log else "" }}</textarea>
-      <div class="action-icons" style="justify-content:flex-end;">
-        <button type="submit" class="icon-button save" aria-label="Apply AI response">💾</button>
-      </div>
-    </form>
-  </details>
+  <div class="ai-launcher">
+    <button id="ai-open-button" type="button" class="icon-button ai-toggle" aria-label="Open AI assistant">
+      🤖 Open AI assistant
+    </button>
+  </div>
 
   <details class="trip-panel collapsible">
     <summary>Edit trip</summary>
@@ -238,4 +217,56 @@
       </div>
     </form>
   </details>
+  <div id="ai-sidebar-backdrop" class="ai-sidebar-backdrop" hidden></div>
+  <aside id="ai-sidebar" class="ai-sidebar" hidden aria-hidden="true">
+    <div class="ai-sidebar-header">
+      <h3>AI assistant</h3>
+      <button type="button" class="icon-button" data-ai-close aria-label="Close AI assistant">✕</button>
+    </div>
+    <section class="ai-section">
+      <div class="ai-section-head">
+        <div>
+          <p class="ai-section-title">Prompt toolkit</p>
+          <small>Copy the ready-made prompt or ask the assistant to generate everything.</small>
+        </div>
+        <div class="ai-head-actions">
+          <form method="post" action="{{ url_for('main.generate_trip_ai', trip_id=trip.id) }}" data-ai-generate="prompt">
+            <input type="hidden" name="generate_only" value="true" />
+            <button type="submit" class="ai-generate-btn secondary">
+              <span class="ai-btn-icon">📝</span>
+              <span>Generate prompt</span>
+            </button>
+          </form>
+          <form id="ai-generate-form" method="post" action="{{ url_for('main.generate_trip_ai', trip_id=trip.id) }}" data-ai-generate="apply">
+            <button type="submit" class="ai-generate-btn">
+              <span class="ai-btn-icon">⚙️</span>
+              <span>Generate & apply</span>
+            </button>
+          </form>
+          <small>Applying AI will replace current trip contents.</small>
+        </div>
+      </div>
+      <label for="ai-last-prompt">Latest prompt</label>
+      <textarea id="ai-last-prompt" rows="8" readonly>{{ ai_prompt_text }}</textarea>
+      <div class="action-icons" style="justify-content:flex-end;">
+        <button type="button" class="icon-button" data-copy-target="ai-last-prompt" aria-label="Copy prompt">📋</button>
+      </div>
+    </section>
+    <section class="ai-section">
+      <p class="ai-section-title">AI response JSON</p>
+      <p class="ai-warning">Applying an AI response will overwrite all manual edits.</p>
+      <form id="ai-response-form" method="post" action="{{ url_for('main.apply_ai_response', trip_id=trip.id) }}">
+        <label for="ai_response_text">Paste or review JSON</label>
+        <textarea id="ai_response_text" name="ai_response_text" rows="12" placeholder="Paste or edit JSON before applying.">{{ ai_response_text }}</textarea>
+        <div class="action-icons" style="justify-content:flex-end;">
+          <button type="submit" class="icon-button save" data-ai-apply aria-label="Apply AI response">💾 Apply</button>
+        </div>
+      </form>
+    </section>
+  </aside>
+  {% if show_ai_sidebar %}
+    <script>
+      window.__openAISidebar = true;
+    </script>
+  {% endif %}
 {% endblock %}

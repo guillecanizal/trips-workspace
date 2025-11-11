@@ -10,15 +10,15 @@ import re
 import textwrap
 
 from flask import (Blueprint, abort, current_app, flash, jsonify, redirect,
-                   render_template, request, send_file, url_for)
+                   render_template, request, send_file, session as flask_session, url_for)
 from sqlalchemy import select
 
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
 from .models import Activity, Day, GeneralItem, Trip
-from .services.ai import AIGenerationError, generate_itinerary
-from .utils.maps import enrich_with_maps_links
+from .services.ai import AIGenerationError, generate_itinerary, build_trip_prompt
+from .utils.maps import enrich_with_maps_links, build_itinerary_maps_url
 
 
 bp = Blueprint("main", __name__)
@@ -141,24 +141,6 @@ def enforce_trip_date_range(trip: Trip) -> tuple[date, date]:
     if trip.end_date < trip.start_date:
         abort(400, "Trip end date must be on or after the start date")
     return trip.start_date, trip.end_date
-
-
-def trip_is_empty(trip: Trip) -> bool:
-    if trip.general_items:
-        return False
-    for day in trip.days:
-        has_hotel_info = any(
-            [
-                day.hotel_name,
-                day.hotel_reservation_id,
-                day.hotel_price,
-                day.hotel_link,
-                day.hotel_maps_link,
-            ]
-        )
-        if has_hotel_info or day.activities:
-            return False
-    return True
 
 
 def _safe_float(value):
@@ -797,14 +779,19 @@ def view_trip_page(trip_id: int):
         )
         ai_log = load_latest_ai_log(trip.id)
         stats = calculate_trip_stats(ordered_days, general_items)
+        manual_prompt = flask_session.pop("manual_ai_prompt", None)
+        prompt_text = manual_prompt or (ai_log["prompt"] if ai_log else "No prompt available yet.")
+        response_text = ai_log["response"] if ai_log else ""
         return render_template(
             "trip_detail.html",
             trip=trip,
             days=ordered_days,
             general_items=general_items,
-            can_generate_ai=trip_is_empty(trip),
             ai_log=ai_log,
             stats=stats,
+            show_ai_sidebar=request.args.get("show_ai") == "1",
+            ai_prompt_text=prompt_text,
+            ai_response_text=response_text,
         )
     finally:
         session.close()
@@ -964,18 +951,27 @@ def generate_trip_ai(trip_id: int):
         if not trip:
             abort(404, "Trip not found")
 
-        if not trip_is_empty(trip):
-            flash("AI generation is only available for empty trips.", "error")
-            return redirect(url_for("main.view_trip_page", trip_id=trip.id))
-
         day_dates = sorted(day.date for day in trip.days if day.date)
         if not day_dates:
             flash("Trip needs dated days before generating.", "error")
             return redirect(url_for("main.view_trip_page", trip_id=trip.id))
 
+        generate_only = request.form.get("generate_only") == "true"
+
         current_app.logger.info(
-            "AI generation requested", extra={"trip_id": trip.id, "days": len(day_dates)}
+            "AI generation requested",
+            extra={"trip_id": trip.id, "days": len(day_dates), "apply": not generate_only},
         )
+
+        if generate_only:
+            prompt = build_trip_prompt(trip.name, trip.description, day_dates)
+            flask_session["manual_ai_prompt"] = prompt
+            current_app.logger.info(
+                "Manual prompt generated",
+                extra={"trip_id": trip.id},
+            )
+            flash("Prompt ready. Review it in the sidebar before calling any LLM.", "success")
+            return redirect(url_for("main.view_trip_page", trip_id=trip.id, show_ai="1"))
 
         try:
             payload, log_file = generate_itinerary(
@@ -992,6 +988,7 @@ def generate_trip_ai(trip_id: int):
             return redirect(url_for("main.view_trip_page", trip_id=trip.id))
 
         payload = enrich_with_maps_links(payload)
+
         reset_trip_content(session, trip)
         summary = apply_ai_payload(session, trip, payload)
         session.commit()
@@ -1301,5 +1298,34 @@ def delete_activity_page(activity_id: int):
         session.delete(activity)
         session.commit()
         return redirect(url_for("main.view_trip_page", trip_id=trip_id))
+    finally:
+        session.close()
+@bp.get("/trips/<int:trip_id>/maps-itinerary")
+def itinerary_maps_url(trip_id: int):
+    session = get_session()
+    try:
+        trip = session.get(Trip, trip_id)
+        if not trip:
+            abort(404, "Trip not found")
+        ordered_days = sorted(
+            trip.days,
+            key=lambda d: (d.date or date.max, d.id),
+        )
+        payload_like = {
+            "days": [
+                {
+                    "date": day.date.isoformat() if day.date else None,
+                    "hotel": {
+                        "name": day.hotel_name,
+                        "location": day.hotel_location,
+                    },
+                }
+                for day in ordered_days
+            ]
+        }
+        maps_url = build_itinerary_maps_url(payload_like)
+        if not maps_url:
+            return jsonify({"url": None, "error": "Insufficient hotel data"}), 404
+        return jsonify({"url": maps_url})
     finally:
         session.close()

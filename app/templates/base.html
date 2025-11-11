@@ -110,6 +110,113 @@
         gap: 1.5rem;
         grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
       }
+      .ai-launcher {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 1rem;
+      }
+      .ai-toggle {
+        font-weight: 600;
+        gap: 0.35rem;
+        display: inline-flex;
+        align-items: center;
+      }
+      .ai-sidebar-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.35);
+        z-index: 90;
+      }
+      .ai-sidebar {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: min(420px, 92%);
+        height: 100%;
+        background: #0d0d0d;
+        color: #f8fafc;
+        box-shadow: -10px 0 45px rgba(0, 0, 0, 0.45);
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        z-index: 95;
+        overflow-y: auto;
+      }
+      .ai-sidebar[hidden],
+      .ai-sidebar-backdrop[hidden] {
+        display: none !important;
+      }
+      .ai-sidebar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(248, 250, 252, 0.1);
+        padding-bottom: 0.5rem;
+      }
+      .ai-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        border: 1px solid rgba(248, 250, 252, 0.08);
+        border-radius: 0.6rem;
+        padding: 0.9rem;
+        background: #181818;
+      }
+      .ai-section-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.8rem;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .ai-section-title {
+        font-weight: 600;
+        margin: 0;
+        color: #f8fafc;
+      }
+      .ai-warning {
+        margin: 0;
+        font-size: 0.85rem;
+        color: #f97316;
+      }
+      .ai-head-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.35rem;
+      }
+      .ai-head-actions small {
+        color: #d1d5db;
+      }
+      .ai-generate-btn {
+        border: 1px solid rgba(248, 250, 252, 0.4);
+        border-radius: 999px;
+        padding: 0.35rem 0.9rem;
+        background: transparent;
+        color: #f8fafc;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        cursor: pointer;
+      }
+      .ai-generate-btn:hover {
+        background: rgba(248, 250, 252, 0.1);
+      }
+      .ai-generate-btn.secondary {
+        border-color: rgba(248, 250, 252, 0.25);
+        color: #d1d5db;
+      }
+      .ai-generate-btn.secondary:hover {
+        background: rgba(248, 250, 252, 0.08);
+      }
+      .ai-btn-icon {
+        font-size: 1rem;
+      }
+      body.ai-sidebar-open {
+        overflow: hidden;
+      }
       .trip-card {
         border-radius: 1rem;
         padding: 1.3rem;
@@ -308,7 +415,7 @@
     </main>
     <script>
       document.addEventListener('DOMContentLoaded', () => {
-        const fields = document.querySelectorAll('input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"hidden\"]):not([type=\"submit\"]):not([type=\"button\"]), textarea, select');
+        const fields = document.querySelectorAll('input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="submit"]):not([type="button"]), textarea, select');
         const updateFilledState = (field) => {
           const value = field.tagName === 'SELECT' ? field.value : field.value.trim();
           field.dataset.filled = value ? 'true' : 'false';
@@ -335,14 +442,102 @@
           form.addEventListener('dblclick', toggleEditable);
         });
 
-        const aiForm = document.getElementById('ai-generate-form');
-        if (aiForm) {
-          const button = aiForm.querySelector('button');
-          aiForm.addEventListener('submit', () => {
+        document.querySelectorAll('form[data-ai-generate]').forEach((form) => {
+          const button = form.querySelector('button');
+          form.addEventListener('submit', () => {
             if (button) {
               button.disabled = true;
               button.dataset.originalText = button.textContent;
               button.textContent = 'Generating…';
+            }
+          });
+        });
+
+        document.querySelectorAll('[data-itinerary-maps]').forEach((trigger) => {
+          trigger.addEventListener('click', async (event) => {
+            event.preventDefault();
+            const url = trigger.getAttribute('data-itinerary-maps');
+            if (!url || trigger.dataset.loading === 'true') {
+              return;
+            }
+            trigger.dataset.loading = 'true';
+            try {
+              const response = await fetch(url);
+              if (!response.ok) {
+                throw new Error('Failed to build itinerary');
+              }
+              const data = await response.json();
+              if (data && data.url) {
+                window.open(data.url, '_blank');
+              } else {
+                alert(data?.error || 'Not enough hotel information to build a route.');
+              }
+            } catch (error) {
+              alert(error.message || 'Unable to build itinerary.');
+            } finally {
+              delete trigger.dataset.loading;
+            }
+          });
+        });
+
+        const aiSidebar = document.getElementById('ai-sidebar');
+        const aiBackdrop = document.getElementById('ai-sidebar-backdrop');
+        const aiOpenButton = document.getElementById('ai-open-button');
+        const aiCloseButton = document.querySelector('[data-ai-close]');
+        const setAiSidebar = (open) => {
+          if (!aiSidebar || !aiBackdrop) {
+            return;
+          }
+          if (open) {
+            aiSidebar.hidden = false;
+            aiBackdrop.hidden = false;
+            aiSidebar.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('ai-sidebar-open');
+          } else {
+            aiSidebar.hidden = true;
+            aiBackdrop.hidden = true;
+            aiSidebar.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('ai-sidebar-open');
+          }
+        };
+        aiBackdrop?.addEventListener('click', () => setAiSidebar(false));
+        aiCloseButton?.addEventListener('click', () => setAiSidebar(false));
+        aiOpenButton?.addEventListener('click', () => setAiSidebar(true));
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {
+            setAiSidebar(false);
+          }
+        });
+
+        document.querySelectorAll('[data-copy-target]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            const targetId = button.getAttribute('data-copy-target');
+            const target = document.getElementById(targetId);
+            if (!target) {
+              return;
+            }
+            const value = target.value || target.textContent || '';
+            try {
+              await navigator.clipboard.writeText(value);
+              button.textContent = '✅';
+              setTimeout(() => {
+                button.textContent = '📋';
+              }, 1200);
+            } catch (error) {
+              alert('Unable to copy content.');
+            }
+          });
+        });
+
+        if (window.__openAISidebar) {
+          setAiSidebar(true);
+        }
+
+        const aiResponseForm = document.getElementById('ai-response-form');
+        if (aiResponseForm) {
+          aiResponseForm.addEventListener('submit', (event) => {
+            if (!confirm('Applying the AI response will overwrite all manual changes. Continue?')) {
+              event.preventDefault();
             }
           });
         }

@@ -25,7 +25,7 @@ def _ensure_logs_dir(trip_id: int, base_path: Optional[Path] = None) -> Path:
     return path
 
 
-def _format_prompt(trip_name: str, description: str | None, days: list[date]) -> str:
+def build_trip_prompt(trip_name: str, description: str | None, days: list[date]) -> str:
     days_str = "\n".join(day.isoformat() for day in days)
     desc = description or "(no description provided)"
     return (
@@ -125,7 +125,7 @@ def generate_itinerary(
     if not days:
         raise AIGenerationError("At least one day is required for AI generation.")
 
-    prompt = _format_prompt(trip_name, description, days)
+    prompt = build_trip_prompt(trip_name, description, days)
     messages = _build_messages(prompt)
 
     if client_factory:

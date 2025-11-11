@@ -40,3 +40,54 @@ def enrich_with_maps_links(payload: Dict[str, Any]) -> Dict[str, Any]:
             )
 
     return payload
+
+
+def _clean_point(name: str | None, location: str | None) -> str | None:
+    if not name or not location:
+        return None
+    name = name.strip()
+    location = location.strip()
+    if not name or not location:
+        return None
+    return f"{name}, {location}"
+
+
+def build_itinerary_maps_url(data: Dict[str, Any]) -> str | None:
+    """Return a Maps Directions URL based solely on hotel locations."""
+    if not isinstance(data, dict):
+        return None
+
+    days = data.get("days") or []
+    if not isinstance(days, list):
+        return None
+
+    points: list[str] = []
+    last_point: str | None = None
+    for day in days:
+        if not isinstance(day, dict):
+            continue
+        hotel = day.get("hotel")
+        if not isinstance(hotel, dict):
+            continue
+        point = _clean_point(hotel.get("name"), hotel.get("location"))
+        if not point or point == last_point:
+            continue
+        points.append(point)
+        last_point = point
+
+    if len(points) < 2:
+        return None
+
+    origin = urllib.parse.quote(points[0])
+    destination = urllib.parse.quote(points[-1])
+    waypoints_segment = ""
+    if len(points) > 2:
+        waypoint_str = "|".join(points[1:-1])
+        waypoints_segment = "&waypoints=" + urllib.parse.quote(waypoint_str, safe="|, ")
+
+    return (
+        "https://www.google.com/maps/dir/?api=1"
+        f"&origin={origin}"
+        f"&destination={destination}"
+        f"{waypoints_segment}"
+    )
