@@ -758,6 +758,26 @@ def view_trip_page(trip_id: int):
             trip.general_items,
             key=lambda item: ((item.name or "").lower(), item.id),
         )
+        total_distance_km = sum(
+            distance
+            for distance in (day.distance_km for day in ordered_days)
+            if distance is not None
+        )
+        total_activities = sum(len(day.activities) for day in ordered_days)
+        total_general_items = len(general_items)
+        total_price = sum(
+            value
+            for value in [
+                *(day.hotel_price for day in ordered_days),
+                *(
+                    activity.price
+                    for day in ordered_days
+                    for activity in day.activities
+                ),
+                *(item.price for item in general_items),
+            ]
+            if value is not None
+        )
         ai_log = load_latest_ai_log(trip.id)
         return render_template(
             "trip_detail.html",
@@ -766,6 +786,13 @@ def view_trip_page(trip_id: int):
             general_items=general_items,
             can_generate_ai=trip_is_empty(trip),
             ai_log=ai_log,
+            stats={
+                "total_price": total_price,
+                "total_distance_km": total_distance_km,
+                "day_count": len(ordered_days),
+                "activity_count": total_activities,
+                "general_item_count": total_general_items,
+            },
         )
     finally:
         session.close()

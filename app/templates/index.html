@@ -17,10 +17,12 @@
         </div>
         <div style="display:flex;align-items:center;gap:0.75rem;">
           <div class="trip-meta">
-            <span class="pill">{{ trip.start_date or "?" }} → {{ trip.end_date or "?" }}</span>
+            <span class="pill">Dates {{ trip.start_date or "?" }} → {{ trip.end_date or "?" }}</span>
             <span class="pill">{{ stats.day_count }} days</span>
             <span class="pill">{{ stats.activity_count }} activities</span>
             <span class="pill">{{ stats.general_item_count }} items</span>
+            <span class="pill">Cost {{ '%.2f' % ((stats.total_price or 0) | float) }}</span>
+            <span class="pill">{{ stats.total_distance_km or 0 }} km</span>
           </div>
           <a class="icon-button" href="{{ url_for('main.view_trip_page', trip_id=trip.id) }}" title="Open trip">✏️</a>
         </div>

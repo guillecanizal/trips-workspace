@@ -7,10 +7,18 @@
   <p>
     {{ trip.start_date or "?" }} → {{ trip.end_date or "?" }}
   </p>
+  <div class="trip-meta" style="margin-bottom:1rem;">
+    <span class="pill">{{ stats.day_count }} days</span>
+    <span class="pill">{{ stats.activity_count }} activities</span>
+    <span class="pill">{{ stats.general_item_count }} items</span>
+    <span class="pill">Total cost {{ '%.2f' % ((stats.total_price or 0) | float) }}</span>
+    <span class="pill">{{ stats.total_distance_km or 0 }} km</span>
+  </div>
 
-  <section class="section-card">
+  <details class="trip-panel collapsible">
+    <summary>AI assistant</summary>
     <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;">
-      <h2>AI assistant</h2>
+      <span style="font-weight:600;">AI controls</span>
       {% if can_generate_ai %}
         <form id="ai-generate-form" method="post" action="{{ url_for('main.generate_trip_ai', trip_id=trip.id) }}">
           <button type="submit" class="icon-button add" aria-label="Generate itinerary">⚙️</button>
@@ -32,62 +40,55 @@
         <button type="submit" class="icon-button save" aria-label="Apply AI response">💾</button>
       </div>
     </form>
-  </section>
+  </details>
 
-  <form method="post">
-    <h2>Edit trip</h2>
-    <label for="name">Name</label>
-    <input id="name" name="name" value="{{ trip.name }}" required />
+  <details class="trip-panel collapsible">
+    <summary>Edit trip</summary>
+    <form method="post">
+      <label for="name">Name</label>
+      <input id="name" name="name" value="{{ trip.name }}" required />
 
-    <label for="description">Description</label>
-    <textarea id="description" name="description" rows="3">{{ trip.description or "" }}</textarea>
+      <label for="description">Description</label>
+      <textarea id="description" name="description" rows="3">{{ trip.description or "" }}</textarea>
 
-    <label for="start_date">Start date</label>
-    <input id="start_date" name="start_date" type="date" value="{{ trip.start_date.isoformat() if trip.start_date else '' }}" />
+      <label for="start_date">Start date</label>
+      <input id="start_date" name="start_date" type="date" value="{{ trip.start_date.isoformat() if trip.start_date else '' }}" />
 
-    <label for="end_date">End date</label>
-    <input id="end_date" name="end_date" type="date" value="{{ trip.end_date.isoformat() if trip.end_date else '' }}" />
+      <label for="end_date">End date</label>
+      <input id="end_date" name="end_date" type="date" value="{{ trip.end_date.isoformat() if trip.end_date else '' }}" />
 
-    <button type="submit">Save changes</button>
-  </form>
-
-  <form method="post" action="{{ url_for('main.delete_trip_page', trip_id=trip.id) }}" onsubmit="return confirm('Delete this entire trip and all related data?');">
-    <button type="submit" class="icon-button danger" aria-label="Delete trip">🗑</button>
-  </form>
-
-  <section class="section-card">
-    <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;">
-      <h2>General items</h2>
-      <div class="action-icons">
-        <button form="add-general-item" type="submit" class="icon-button add" aria-label="Add general item">➕</button>
+      <div style="display:flex;gap:0.5rem;align-items:center;">
+        <button type="submit" class="icon-button save" aria-label="Save trip">💾</button>
+        <button
+          type="submit"
+          class="icon-button danger"
+          aria-label="Delete trip"
+          formaction="{{ url_for('main.delete_trip_page', trip_id=trip.id) }}"
+          formmethod="post"
+          onclick="return confirm('Delete this entire trip and all related data?');"
+        >🗑</button>
       </div>
-    </div>
+    </form>
+  </details>
+
+  <details class="trip-panel collapsible">
+    <summary>General items</summary>
     <div>
       {% if general_items %}
         <div class="table-wrapper">
           <table class="table-like">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Description</th>
-                <th>Reservation</th>
-                <th>Price</th>
-                <th>Link</th>
-                <th></th>
-              </tr>
-            </thead>
             <tbody>
               {% for item in general_items %}
                 <tr>
                   <td colspan="6">
                     <div class="inline-wrapper">
                       <form data-inline-form method="post" action="{{ url_for('main.update_general_item_page', item_id=item.id) }}" class="inline-form">
-                        <input name="name" value="{{ item.name }}" readonly required />
-                        <input name="description" value="{{ item.description or '' }}" readonly />
-                        <input name="reservation_id" value="{{ item.reservation_id or '' }}" readonly />
-                        <input name="price" type="number" step="0.01" value="{{ item.price or '' }}" readonly />
-                        <input name="link" type="url" value="{{ item.link or '' }}" readonly />
-                        <input name="maps_link" type="url" value="{{ item.maps_link or '' }}" readonly />
+                        <input name="name" value="{{ item.name }}" placeholder="Name" readonly required />
+                        <input name="description" value="{{ item.description or '' }}" placeholder="Description" readonly />
+                        <input name="reservation_id" value="{{ item.reservation_id or '' }}" placeholder="Reservation" readonly />
+                        <input name="price" type="number" step="0.01" value="{{ item.price or '' }}" placeholder="Price" readonly />
+                        <input name="link" type="url" value="{{ item.link or '' }}" placeholder="Link" readonly />
+                        <input name="maps_link" type="url" value="{{ item.maps_link or '' }}" placeholder="Maps link" readonly />
                         <select name="cancelable" disabled>
                           <option value="" {% if item.cancelable is none %}selected{% endif %}>Unknown</option>
                           <option value="true" {% if item.cancelable %}selected{% endif %}>Yes</option>
@@ -98,8 +99,7 @@
                           <button form="delete-item-{{ item.id }}" type="submit" class="icon-button danger" aria-label="Delete item">🗑</button>
                         </div>
                       </form>
-                      <form id="delete-item-{{ item.id }}" method="post" action="{{ url_for('main.delete_general_item_page', item_id=item.id) }}" onsubmit="return confirm('Delete this item?');" class="inline-delete"></form>
-                    </div>
+                      </div>
                   </td>
                 </tr>
               {% endfor %}
@@ -129,110 +129,99 @@
         </div>
       </form>
     </div>
-  </section>
+  </details>
 
-  <section class="section-card">
-    <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;">
-      <h2>Days</h2>
-      <div class="action-icons">
-        <button form="add-day-form" type="submit" class="icon-button add" aria-label="Add day">➕</button>
-      </div>
-    </div>
-    {% if days %}
-      {% for day in days %}
-        <div class="section-card">
-          <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;">
-            <h3>Day {{ loop.index }} – {{ day.date or "Unscheduled day" }}</h3>
-            <div class="action-icons">
-              <button form="delete-day-{{ day.id }}" type="submit" class="icon-button danger" aria-label="Delete day">🗑</button>
-            </div>
+  {% if days %}
+    {% for day in days %}
+      <details class="trip-panel collapsible">
+        <summary>Day {{ loop.index }} – {{ day.date or "Unscheduled day" }}</summary>
+        <form data-inline-form method="post" action="{{ url_for('main.update_day_page', day_id=day.id) }}" class="inline-form">
+          <input name="date" type="date" value="{{ day.date.isoformat() if day.date else '' }}" readonly />
+          <input name="hotel_name" value="{{ day.hotel_name or '' }}" placeholder="Hotel name" readonly />
+          <input name="hotel_location" value="{{ day.hotel_location or '' }}" placeholder="Location" readonly />
+          <textarea name="hotel_description" rows="2" placeholder="Description" readonly>{{ day.hotel_description or '' }}</textarea>
+          <input name="hotel_reservation_id" value="{{ day.hotel_reservation_id or '' }}" placeholder="Reservation" readonly />
+          <input name="hotel_price" type="number" step="0.01" value="{{ day.hotel_price or '' }}" placeholder="Hotel price" readonly />
+          <input name="hotel_link" type="url" value="{{ day.hotel_link or '' }}" placeholder="Hotel link" readonly />
+          <input name="hotel_maps_link" type="url" value="{{ day.hotel_maps_link or '' }}" placeholder="Maps link" readonly />
+          <select name="hotel_cancelable" disabled>
+            <option value="" {% if day.hotel_cancelable is none %}selected{% endif %}>Unknown</option>
+            <option value="true" {% if day.hotel_cancelable %}selected{% endif %}>Yes</option>
+            <option value="false" {% if day.hotel_cancelable is not none and not day.hotel_cancelable %}selected{% endif %}>No</option>
+          </select>
+          <input name="distance_km" type="number" step="0.1" value="{{ day.distance_km or '' }}" placeholder="Distance km" readonly />
+          <input name="distance_hours" type="number" min="0" value="{{ day.distance_hours or '' }}" placeholder="Hours" readonly />
+          <input name="distance_minutes" type="number" min="0" max="59" value="{{ day.distance_minutes or '' }}" placeholder="Minutes" readonly />
+          <div class="action-icons">
+            <button type="submit" class="icon-button save inline-save" disabled aria-label="Save day">💾</button>
+            <button form="delete-day-{{ day.id }}" type="submit" class="icon-button danger" aria-label="Delete day">🗑</button>
           </div>
-          <form data-inline-form method="post" action="{{ url_for('main.update_day_page', day_id=day.id) }}" class="inline-form">
-            <input name="date" type="date" value="{{ day.date.isoformat() if day.date else '' }}" readonly />
-            <input name="hotel_name" value="{{ day.hotel_name or '' }}" placeholder="Hotel name" readonly />
-            <input name="hotel_location" value="{{ day.hotel_location or '' }}" placeholder="Location" readonly />
-            <textarea name="hotel_description" rows="2" placeholder="Description" readonly>{{ day.hotel_description or '' }}</textarea>
-            <input name="hotel_reservation_id" value="{{ day.hotel_reservation_id or '' }}" placeholder="Reservation" readonly />
-            <input name="hotel_price" type="number" step="0.01" value="{{ day.hotel_price or '' }}" placeholder="Hotel price" readonly />
-            <input name="hotel_link" type="url" value="{{ day.hotel_link or '' }}" placeholder="Hotel link" readonly />
-            <input name="hotel_maps_link" type="url" value="{{ day.hotel_maps_link or '' }}" placeholder="Maps link" readonly />
-            <select name="hotel_cancelable" disabled>
-              <option value="" {% if day.hotel_cancelable is none %}selected{% endif %}>Unknown</option>
-              <option value="true" {% if day.hotel_cancelable %}selected{% endif %}>Yes</option>
-              <option value="false" {% if day.hotel_cancelable is not none and not day.hotel_cancelable %}selected{% endif %}>No</option>
-            </select>
-            <input name="distance_km" type="number" step="0.1" value="{{ day.distance_km or '' }}" placeholder="Distance km" readonly />
-            <input name="distance_hours" type="number" min="0" value="{{ day.distance_hours or '' }}" placeholder="Hours" readonly />
-            <input name="distance_minutes" type="number" min="0" max="59" value="{{ day.distance_minutes or '' }}" placeholder="Minutes" readonly />
-            <div class="action-icons">
-              <button type="submit" class="icon-button save inline-save" disabled aria-label="Save day">💾</button>
+        </form>
+        <form id="delete-day-{{ day.id }}" method="post" action="{{ url_for('main.delete_day_page', day_id=day.id) }}" onsubmit="return confirm('Delete this day and its activities?');"></form>
+
+        <div class="activities">
+          <h4>Activities</h4>
+          {% if day.activities %}
+            {% for activity in day.activities %}
+              <div class="inline-wrapper">
+                <form data-inline-form method="post" action="{{ url_for('main.update_activity_page', activity_id=activity.id) }}" class="inline-form">
+                  <input name="name" value="{{ activity.name }}" required readonly />
+                  <textarea name="description" rows="2" readonly>{{ activity.description or '' }}</textarea>
+                  <input name="price" type="number" step="0.01" value="{{ activity.price or '' }}" placeholder="Price" readonly />
+                  <input name="reservation_id" value="{{ activity.reservation_id or '' }}" placeholder="Reservation" readonly />
+                  <input name="link" type="url" value="{{ activity.link or '' }}" placeholder="Link" readonly />
+                  <div class="action-icons">
+                    <button type="submit" class="icon-button save inline-save" disabled aria-label="Save activity">💾</button>
+                    <button form="delete-activity-{{ activity.id }}" type="submit" class="icon-button danger" aria-label="Delete activity">🗑</button>
+                  </div>
+                </form>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p>No activities yet.</p>
+          {% endif %}
+
+          <form method="post" action="{{ url_for('main.create_activity_page', day_id=day.id) }}">
+            <div class="inline-form">
+              <input name="name" placeholder="Activity name" required />
+              <textarea name="description" rows="2" placeholder="Description"></textarea>
+              <input name="price" type="number" step="0.01" placeholder="Price" />
+              <input name="reservation_id" placeholder="Reservation" />
+              <input name="link" type="url" placeholder="Link" />
+              <button type="submit" class="icon-button" aria-label="Add activity">➕</button>
             </div>
           </form>
-          <form id="delete-day-{{ day.id }}" method="post" action="{{ url_for('main.delete_day_page', day_id=day.id) }}" onsubmit="return confirm('Delete this day and its activities?');"></form>
-
-          <div class="activities">
-            <h4>Activities</h4>
-            {% if day.activities %}
-              {% for activity in day.activities %}
-                <div class="inline-wrapper">
-                  <form data-inline-form method="post" action="{{ url_for('main.update_activity_page', activity_id=activity.id) }}" class="inline-form">
-                    <input name="name" value="{{ activity.name }}" required readonly />
-                    <textarea name="description" rows="2" readonly>{{ activity.description or '' }}</textarea>
-                    <input name="price" type="number" step="0.01" value="{{ activity.price or '' }}" placeholder="Price" readonly />
-                    <input name="reservation_id" value="{{ activity.reservation_id or '' }}" placeholder="Reservation" readonly />
-                    <input name="link" type="url" value="{{ activity.link or '' }}" placeholder="Link" readonly />
-                    <div class="action-icons">
-                      <button type="submit" class="icon-button save inline-save" disabled aria-label="Save activity">💾</button>
-                      <button form="delete-activity-{{ activity.id }}" type="submit" class="icon-button danger" aria-label="Delete activity">🗑</button>
-                    </div>
-                  </form>
-                  <form id="delete-activity-{{ activity.id }}" method="post" action="{{ url_for('main.delete_activity_page', activity_id=activity.id) }}" onsubmit="return confirm('Delete this activity?');" class="inline-delete"></form>
-                </div>
-              {% endfor %}
-            {% else %}
-              <p>No activities yet.</p>
-            {% endif %}
-
-            <form method="post" action="{{ url_for('main.create_activity_page', day_id=day.id) }}">
-              <div class="inline-form">
-                <input name="name" placeholder="Activity name" required />
-                <textarea name="description" rows="2" placeholder="Description"></textarea>
-                <input name="price" type="number" step="0.01" placeholder="Price" />
-                <input name="reservation_id" placeholder="Reservation" />
-                <input name="link" type="url" placeholder="Link" />
-                <button type="submit" class="icon-button" aria-label="Add activity">➕</button>
-              </div>
-            </form>
-          </div>
         </div>
-      {% endfor %}
-    {% else %}
-      <p>No days added yet.</p>
-    {% endif %}
-  </section>
+      </details>
+    {% endfor %}
+  {% else %}
+    <p>No days added yet.</p>
+  {% endif %}
 
-  <form id="add-day-form" method="post" action="{{ url_for('main.create_day_page', trip_id=trip.id) }}">
-    <h2>Add a day</h2>
-    <div class="inline-form">
-      <input name="date" type="date" placeholder="Date" />
-      <input name="hotel_name" placeholder="Hotel name" />
-      <input name="hotel_location" placeholder="Location" />
-      <textarea name="hotel_description" rows="2" placeholder="Description"></textarea>
-      <input name="hotel_reservation_id" placeholder="Reservation" />
-      <input name="hotel_price" type="number" step="0.01" placeholder="Hotel price" />
-      <input name="hotel_link" type="url" placeholder="Hotel link" />
-      <input name="hotel_maps_link" type="url" placeholder="Maps link" />
-      <select name="hotel_cancelable">
-        <option value="" selected>Unknown</option>
-        <option value="true">Yes</option>
-        <option value="false">No</option>
-      </select>
-      <input name="distance_km" type="number" step="0.1" placeholder="Distance km" />
-      <input name="distance_hours" type="number" min="0" placeholder="Hours" />
-      <input name="distance_minutes" type="number" min="0" max="59" placeholder="Minutes" />
-    </div>
-    <div class="action-icons" style="justify-content:flex-end;">
-      <button type="submit" class="icon-button add" aria-label="Add day">➕</button>
-    </div>
-  </form>
+  <details class="trip-panel collapsible">
+    <summary>Add a day</summary>
+    <form id="add-day-form" method="post" action="{{ url_for('main.create_day_page', trip_id=trip.id) }}">
+      <div class="inline-form">
+        <input name="date" type="date" placeholder="Date" />
+        <input name="hotel_name" placeholder="Hotel name" />
+        <input name="hotel_location" placeholder="Location" />
+        <textarea name="hotel_description" rows="2" placeholder="Description"></textarea>
+        <input name="hotel_reservation_id" placeholder="Reservation" />
+        <input name="hotel_price" type="number" step="0.01" placeholder="Hotel price" />
+        <input name="hotel_link" type="url" placeholder="Hotel link" />
+        <input name="hotel_maps_link" type="url" placeholder="Maps link" />
+        <select name="hotel_cancelable">
+          <option value="" selected>Unknown</option>
+          <option value="true">Yes</option>
+          <option value="false">No</option>
+        </select>
+        <input name="distance_km" type="number" step="0.1" placeholder="Distance km" />
+        <input name="distance_hours" type="number" min="0" placeholder="Hours" />
+        <input name="distance_minutes" type="number" min="0" max="59" placeholder="Minutes" />
+      </div>
+      <div class="action-icons" style="justify-content:flex-end;">
+        <button type="submit" class="icon-button add" aria-label="Add day">➕</button>
+      </div>
+    </form>
+  </details>
 {% endblock %}

@@ -7,8 +7,8 @@
     <style>
       :root {
         font-family: "IBM Plex Sans", "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        color: #0f172a;
-        background-color: #f4f6fb;
+        color: #e2e8f0;
+        background-color: #0b1220;
         font-size: 15px;
       }
       * {
@@ -16,29 +16,34 @@
       }
       body {
         margin: 0;
-        background-color: #f4f6fb;
+        background-color: #0b1220;
       }
       header {
-        background: linear-gradient(120deg, #111827, #1d4ed8);
-        color: white;
+        background: linear-gradient(135deg, #050914, #1d2e52);
+        color: #f8fafc;
         padding: 1.5rem;
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.2);
+        box-shadow: 0 12px 30px rgba(2, 6, 23, 0.7);
       }
       main {
         padding: 2rem;
         max-width: 1100px;
         margin: 0 auto;
+        background: #0e1728;
+        border-radius: 1.25rem;
+        box-shadow: 0 20px 60px rgba(2, 6, 23, 0.65);
+        margin-top: 2rem;
+        margin-bottom: 2rem;
       }
       a {
-        color: #1d4ed8;
+        color: #93c5fd;
       }
       form {
         margin-bottom: 1.5rem;
         padding: 1rem;
-        background: white;
-        border-radius: 0.75rem;
-        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-        border: 1px solid #e2e8f0;
+        background: #111a2d;
+        border-radius: 0.9rem;
+        box-shadow: 0 15px 45px rgba(2, 6, 23, 0.55);
+        border: 1px solid #1f2f4f;
       }
       label {
         font-weight: 600;
@@ -51,33 +56,54 @@
         width: 100%;
         padding: 0.65rem 0.75rem;
         margin-top: 0.25rem;
-        border: 1px solid #cbd5f5;
+        border: 1px solid #203354;
         border-radius: 0.55rem;
-        background: #f8fafc;
+        background: #0d182b;
         font-size: 0.95rem;
+        color: #f8fafc;
+      }
+      input[data-filled="false"],
+      textarea[data-filled="false"],
+      select[data-filled="false"] {
+        background: #0b1424;
+        border-color: #1a2843;
+        color: #7d8db4;
+      }
+      input[data-filled="true"],
+      textarea[data-filled="true"],
+      select[data-filled="true"] {
+        background: #132443;
+        border-color: #2f4f7a;
+        color: #f8fafc;
+        box-shadow: inset 0 0 0 1px rgba(47, 79, 122, 0.3);
       }
       input[readonly],
       textarea[readonly] {
-        background: #f1f5f9;
-        color: #475569;
+        background: #0f1f36;
+        color: #8fa3c5;
         cursor: pointer;
+      }
+      input::placeholder,
+      textarea::placeholder {
+        color: #94a3c7;
+        opacity: 1;
       }
       button {
         margin-top: 1rem;
         padding: 0.6rem 1.2rem;
         border: none;
-        border-radius: 0.45rem;
+        border-radius: 0.5rem;
         background: #1d4ed8;
-        color: white;
+        color: #f8fafc;
         cursor: pointer;
         font-weight: 600;
-        box-shadow: 0 4px 14px rgba(29, 78, 216, 0.25);
+        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.45);
       }
       button.secondary {
-        background: #475569;
+        background: #1e3a8a;
       }
       button.danger {
-        background: #b91c1c;
+        background: #0f172a;
       }
       .grid {
         display: grid;
@@ -86,10 +112,10 @@
       }
       .trip-card {
         border-radius: 1rem;
-        padding: 1.25rem;
-        background: white;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 14px 35px rgba(15, 23, 42, 0.08);
+        padding: 1.3rem;
+        background: #111c31;
+        border: 1px solid #1f2f4f;
+        box-shadow: 0 18px 45px rgba(2, 6, 23, 0.6);
         display: flex;
         flex-direction: column;
         gap: 0.6rem;
@@ -102,28 +128,29 @@
         display: flex;
         flex-wrap: wrap;
         gap: 0.5rem;
-        color: #475569;
+        color: #94a3b8;
         font-size: 0.9rem;
       }
       .pill {
-        background: #eef2ff;
-        padding: 0.25rem 0.55rem;
+        background: #1d2b45;
+        padding: 0.25rem 0.65rem;
         border-radius: 999px;
         font-size: 0.8rem;
+        color: #c7d2fe;
       }
       .section-card {
-        margin-bottom: 1.25rem;
-        padding: 1rem;
-        background: white;
-        border-radius: 0.75rem;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+        margin-bottom: 1.5rem;
+        padding: 1.25rem;
+        background: #101a30;
+        border-radius: 0.9rem;
+        border: 1px solid #1f2f4f;
+        box-shadow: 0 18px 40px rgba(2, 6, 23, 0.55);
       }
       details.trip-panel {
         border-radius: 1rem;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
-        background: white;
+        border: 1px solid #1f2f4f;
+        box-shadow: 0 18px 40px rgba(2, 6, 23, 0.55);
+        background: #101a30;
         margin-bottom: 1.5rem;
         padding: 0 1.25rem 1rem;
       }
@@ -137,7 +164,7 @@
         font-weight: 600;
       }
       details.trip-panel[open] summary {
-        border-bottom: 1px solid #e2e8f0;
+        border-bottom: 1px solid #1f2f4f;
         margin-bottom: 1rem;
       }
       details.trip-panel summary::-webkit-details-marker { display:none; }
@@ -148,7 +175,7 @@
       }
       .table-like th,
       .table-like td {
-        border-bottom: 1px solid #e2e8f0;
+        border-bottom: 1px solid #1f2f4f;
         padding: 0.6rem 0.75rem;
         text-align: left;
       }
@@ -182,33 +209,66 @@
       .icon-button {
         background: transparent;
         border: none;
-        color: #475569;
+        color: #a5b4fc;
         cursor: pointer;
-        font-size: 0.9rem;
-        padding: 0.2rem;
+        font-size: 0.95rem;
+        padding: 0.25rem;
+        transition: color 0.15s ease;
       }
       .icon-button.danger {
-        color: #b91c1c;
+        color: #c7d2fe;
       }
       .icon-button.save {
-        color: #166534;
+        color: #93c5fd;
       }
       .icon-button.add {
-        color: #1d4ed8;
+        color: #a5b4fc;
       }
       .inline-form input,
       .inline-form textarea,
       .inline-form select {
         background: transparent;
-        border: none;
-        padding: 0;
+        border: 1px solid transparent;
+        border-radius: 0.4rem;
+        padding: 0.4rem 0.6rem;
         margin: 0;
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        font-size: 0.95rem;
+        color: #f1f5f9;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      }
+      .inline-form:not(.readonly) input,
+      .inline-form:not(.readonly) textarea,
+      .inline-form:not(.readonly) select {
+        background: #0f1f36;
+        border-color: #2a3f63;
+      }
+      .inline-form:not(.readonly) input:focus,
+      .inline-form:not(.readonly) textarea:focus,
+      .inline-form:not(.readonly) select:focus {
+        outline: none;
+        border-color: #5b73a6;
+        box-shadow: 0 0 0 1px rgba(93, 117, 166, 0.4);
       }
       .inline-form.readonly input,
       .inline-form.readonly textarea,
       .inline-form.readonly select {
         pointer-events: none;
-        color: #475569;
+        color: #94a3c7;
+      }
+      .inline-form.readonly input[data-filled="true"],
+      .inline-form.readonly textarea[data-filled="true"],
+      .inline-form.readonly select[data-filled="true"] {
+        color: #f8fafc;
+      }
+      .inline-form.readonly input[data-filled="false"],
+      .inline-form.readonly textarea[data-filled="false"],
+      .inline-form.readonly select[data-filled="false"] {
+        color: #5f6f94;
+      }
+      .inline-form input::placeholder,
+      .inline-form textarea::placeholder {
+        color: #8493b7;
       }
       .flash-container {
         margin: 1rem auto;
@@ -216,17 +276,17 @@
       }
       .flash {
         padding: 0.9rem 1.1rem;
-        border-radius: 0.45rem;
-        margin-bottom: 0.6rem;
-        color: #0f172a;
+        border-radius: 0.5rem;
+        margin-bottom: 0.75rem;
+        color: #e2e8f0;
       }
       .flash-success {
-        background: #dcfce7;
-        border: 1px solid #86efac;
+        background: #132640;
+        border: 1px solid #264975;
       }
       .flash-error {
-        background: #fee2e2;
-        border: 1px solid #f87171;
+        background: #1b2235;
+        border: 1px solid #2d3f63;
       }
     </style>
   </head>
@@ -248,6 +308,17 @@
     </main>
     <script>
       document.addEventListener('DOMContentLoaded', () => {
+        const fields = document.querySelectorAll('input:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"hidden\"]):not([type=\"submit\"]):not([type=\"button\"]), textarea, select');
+        const updateFilledState = (field) => {
+          const value = field.tagName === 'SELECT' ? field.value : field.value.trim();
+          field.dataset.filled = value ? 'true' : 'false';
+        };
+        fields.forEach((field) => {
+          updateFilledState(field);
+          const eventName = field.tagName === 'SELECT' ? 'change' : 'input';
+          field.addEventListener(eventName, () => updateFilledState(field));
+        });
+
         document.querySelectorAll('[data-inline-form]').forEach((form) => {
           form.classList.add('readonly');
           const toggleEditable = () => {
