@@ -24,6 +24,7 @@
             <span class="pill">Cost {{ '%.2f' % ((stats.total_price or 0) | float) }}</span>
             <span class="pill">{{ stats.total_distance_km or 0 }} km</span>
           </div>
+          <a class="icon-button" href="{{ url_for('main.export_trip_pdf', trip_id=trip.id) }}" title="Download PDF" target="_blank" rel="noreferrer">📄</a>
           <a class="icon-button" href="{{ url_for('main.view_trip_page', trip_id=trip.id) }}" title="Open trip">✏️</a>
         </div>
       </summary>
