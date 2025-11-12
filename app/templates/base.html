@@ -222,6 +222,10 @@
         gap: 0.4rem;
         cursor: pointer;
       }
+      .ai-generate-btn[disabled] {
+        opacity: 0.6;
+        cursor: wait;
+      }
       .ai-generate-btn:hover {
         background: rgba(248, 250, 252, 0.1);
       }
@@ -633,24 +637,46 @@
         });
 
         const chatLog = document.getElementById('ai-chat-log');
-        const chatActions = document.getElementById('ai-chat-actions');
         const chatForm = document.getElementById('ai-chat-form');
         const chatInput = document.getElementById('ai-chat-input');
         const TRIP_ID = window.__TRIP_ID;
-        let pendingPatch = null;
+        let chatSubmitButton = null;
+        let defaultChatButtonContent = '';
 
-        const appendChat = (role, content, isJson = false) => {
+        if (chatForm) {
+          chatSubmitButton = chatForm.querySelector('button[type="submit"]');
+          if (chatSubmitButton) {
+            defaultChatButtonContent = chatSubmitButton.innerHTML;
+          }
+        }
+
+        const setChatLoading = (loading) => {
+          if (chatSubmitButton) {
+            chatSubmitButton.disabled = loading;
+            chatSubmitButton.innerHTML = loading
+              ? '<span class="ai-btn-icon">⏳</span><span>Esperando...</span>'
+              : (defaultChatButtonContent || '<span class="ai-btn-icon">💬</span><span>Send</span>');
+          }
+          if (chatInput) {
+            chatInput.disabled = loading;
+          }
+        };
+
+        const appendChat = (role, content, options = {}) => {
           if (!chatLog) return;
+          const { isJson = false, render = null } = options;
           const entry = document.createElement('div');
           entry.className = `ai-chat-entry ${role}`;
           const label = document.createElement('strong');
           label.textContent = role === 'user' ? 'You' : 'Assistant';
           entry.appendChild(label);
-          if (isJson) {
+          if (typeof render === 'function') {
+            entry.appendChild(render());
+          } else if (isJson) {
             const pre = document.createElement('pre');
             pre.textContent = content;
             entry.appendChild(pre);
-          } else {
+          } else if (content) {
             const span = document.createElement('span');
             span.textContent = content;
             entry.appendChild(span);
@@ -659,49 +685,126 @@
           chatLog.scrollTop = chatLog.scrollHeight;
         };
 
-        const renderPendingPatch = () => {
-          if (!chatActions) return;
-          chatActions.innerHTML = '';
-          if (!pendingPatch) {
-            chatActions.setAttribute('hidden', 'true');
-            return;
-          }
-          chatActions.removeAttribute('hidden');
-          if (pendingPatch.type === 'hotel_proposals') {
-            const list = document.createElement('div');
-            pendingPatch.candidates?.forEach((candidate, index) => {
-              const card = document.createElement('div');
-              card.className = 'ai-chat-action-card';
-              card.innerHTML = `<strong>${candidate.name || 'Hotel candidate'}</strong><span>${candidate.location || ''}</span><small>${candidate.description || candidate.notes || ''}</small>`;
-              const btn = document.createElement('button');
-              btn.className = 'ai-generate-btn';
-              btn.type = 'button';
-              btn.textContent = 'Apply hotel';
-              btn.addEventListener('click', () => applyHotelCandidate(index));
-              card.appendChild(btn);
-              list.appendChild(card);
-            });
-            chatActions.appendChild(list);
-          } else if (pendingPatch.type === 'activity_proposal' && pendingPatch.candidate) {
+        const describeResult = (result) => {
+          if (!result) return 'Sin resultados';
+          const action = result.task === 'propose_hotels' ? 'Hoteles recomendados' : 'Actividades sugeridas';
+          const day = result.day ? ` para el día ${result.day}` : '';
+          const location = result.location ? ` en ${result.location}` : '';
+          return `${action}${day}${location}`;
+        };
+
+        const buildRecommendationElement = (result) => {
+          const container = document.createElement('div');
+          const header = document.createElement('div');
+          header.className = 'ai-chat-action-card';
+          const title = document.createElement('strong');
+          title.textContent = describeResult(result);
+          header.appendChild(title);
+          const meta = document.createElement('small');
+          meta.textContent = `Día: ${result.day || '—'} • Localización: ${result.location || '—'} • Total: ${(result.candidates || []).length}`;
+          header.appendChild(meta);
+          container.appendChild(header);
+
+          const list = document.createElement('div');
+          list.style.display = 'flex';
+          list.style.flexDirection = 'column';
+          list.style.gap = '0.5rem';
+
+          (result.candidates || []).forEach((candidate, index) => {
             const card = document.createElement('div');
             card.className = 'ai-chat-action-card';
-            card.innerHTML = `<strong>${pendingPatch.candidate.name}</strong><span>${pendingPatch.candidate.location || ''}</span><small>${pendingPatch.candidate.summary || ''}</small>`;
+
+            const name = document.createElement('strong');
+            name.textContent = candidate.name || `Opción ${index + 1}`;
+            card.appendChild(name);
+
+            const candidateLocation = candidate.location || result.location;
+            if (candidateLocation) {
+              const locationLine = document.createElement('span');
+              locationLine.textContent = `📍 ${candidateLocation}`;
+              card.appendChild(locationLine);
+            }
+
+            const summaryText =
+              candidate.summary ||
+              candidate.details ||
+              candidate.description ||
+              candidate.notes ||
+              '';
+            if (summaryText) {
+              const summary = document.createElement('small');
+              summary.textContent = summaryText;
+              card.appendChild(summary);
+            }
+
+            if (result.task === 'propose_hotels') {
+              const hotelPrice = candidate.price_per_night ?? candidate.price;
+              if (hotelPrice != null) {
+                const price = document.createElement('small');
+                price.textContent = `💶 Precio aprox.: ${hotelPrice}`;
+                card.appendChild(price);
+              }
+            } else if (candidate.estimated_time_hours != null) {
+              const duration = document.createElement('small');
+              duration.textContent = `🕒 Duración estimada: ${candidate.estimated_time_hours} h`;
+              card.appendChild(duration);
+            }
+
+            if (candidate.link) {
+              const link = document.createElement('a');
+              link.href = candidate.link;
+              link.target = '_blank';
+              link.rel = 'noreferrer';
+              link.textContent = 'Abrir enlace';
+              card.appendChild(link);
+            }
+
             const btn = document.createElement('button');
             btn.className = 'ai-generate-btn';
             btn.type = 'button';
-            btn.textContent = 'Apply activity';
-            btn.addEventListener('click', () => applyActivityCandidate());
+            btn.textContent = result.task === 'propose_hotels' ? 'Usar hotel' : 'Añadir actividad';
+            btn.addEventListener('click', () => {
+              if (result.task === 'propose_hotels') {
+                applyHotelCandidate(result, candidate, btn);
+              } else {
+                applyActivityCandidate(result, candidate, btn);
+              }
+            });
             card.appendChild(btn);
-            chatActions.appendChild(card);
-          }
+
+            list.appendChild(card);
+          });
+
+          container.appendChild(list);
+          return container;
         };
 
-        const prettyJSON = (data) => {
-          try {
-            return JSON.stringify(data, null, 2);
-          } catch (error) {
-            return String(data);
-          }
+        const buildHotelPayload = (candidate, fallbackLocation) => {
+          const description = candidate.description || candidate.details || candidate.summary || candidate.notes || '';
+          return {
+            name: candidate.name || null,
+            location: candidate.location || fallbackLocation || null,
+            description,
+            notes: candidate.notes || null,
+            reservation_id: candidate.reservation_id || null,
+            price: candidate.price ?? candidate.price_per_night ?? null,
+            link: candidate.link || null,
+            maps_link: candidate.maps_link || null,
+            cancelable: candidate.cancelable ?? null,
+          };
+        };
+
+        const buildActivityPayload = (candidate, fallbackLocation) => {
+          const details = candidate.details || candidate.summary || candidate.description || '';
+          return {
+            name: candidate.name || 'Actividad sugerida',
+            location: candidate.location || fallbackLocation || null,
+            description: details,
+            price: candidate.price ?? null,
+            reservation_id: candidate.reservation_id ?? null,
+            link: candidate.link || null,
+            maps_link: candidate.maps_link || null,
+          };
         };
 
         const parseJson = async (response) => {
@@ -726,36 +829,74 @@
           return data || {};
         };
 
-        const applyHotelCandidate = async (index) => {
-          const day = pendingPatch?.day;
-          if (!day) return;
-          const payload = { trip_id: TRIP_ID, day, index };
-          const response = await fetch('/apply/hotel', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-          const data = await parseJson(response);
-          if (!response.ok) throw new Error(data?.error || 'Failed to apply hotel');
-          pendingPatch = null;
-          renderPendingPatch();
-          appendChat('assistant', prettyJSON(data || {}), true);
+        const applyHotelCandidate = async (result, candidate, button) => {
+          if (!result?.day) {
+            appendChat('assistant', 'No se puede aplicar el hotel sin un día válido.');
+            return;
+          }
+          const day = result.day;
+          const originalText = button?.textContent || '';
+          if (button) {
+            button.disabled = true;
+            button.textContent = 'Aplicando...';
+          }
+          const payload = {
+            trip_id: TRIP_ID,
+            day,
+            hotel: buildHotelPayload(candidate, result.location),
+          };
+          try {
+            const response = await fetch('/apply/hotel', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            const data = await parseJson(response);
+            if (!response.ok) throw new Error(data?.error || 'Failed to apply hotel');
+            appendChat('assistant', `Hotel guardado para el día ${day}.`);
+          } catch (error) {
+            appendChat('assistant', error.message || 'Error al aplicar hotel');
+          } finally {
+            if (button) {
+              button.disabled = false;
+              button.textContent = originalText || 'Usar hotel';
+            }
+          }
         };
 
-        const applyActivityCandidate = async () => {
-          const day = pendingPatch?.day;
-          if (!day) return;
-          const payload = { trip_id: TRIP_ID, day };
-          const response = await fetch('/apply/activity', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-          const data = await parseJson(response);
-          if (!response.ok) throw new Error(data?.error || 'Failed to apply activity');
-          pendingPatch = null;
-          renderPendingPatch();
-          appendChat('assistant', prettyJSON(data || {}), true);
+        const applyActivityCandidate = async (result, candidate, button) => {
+          if (!result?.day) {
+            appendChat('assistant', 'No se puede aplicar la actividad sin un día válido.');
+            return;
+          }
+          const day = result.day;
+          const originalText = button?.textContent || '';
+          if (button) {
+            button.disabled = true;
+            button.textContent = 'Aplicando...';
+          }
+          const payload = {
+            trip_id: TRIP_ID,
+            day,
+            activity: buildActivityPayload(candidate, result.location),
+          };
+          try {
+            const response = await fetch('/apply/activity', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            const data = await parseJson(response);
+            if (!response.ok) throw new Error(data?.error || 'Failed to apply activity');
+            appendChat('assistant', `Actividad añadida al día ${day}.`);
+          } catch (error) {
+            appendChat('assistant', error.message || 'Error al aplicar actividad');
+          } finally {
+            if (button) {
+              button.disabled = false;
+              button.textContent = originalText || 'Añadir actividad';
+            }
+          }
         };
 
         if (chatForm && chatInput) {
@@ -765,15 +906,20 @@
             if (!message) return;
             appendChat('user', message);
             chatInput.value = '';
+            setChatLoading(true);
             try {
               const data = await callAgent(message);
-              if (data.result) {
-                appendChat('assistant', prettyJSON(data.result), true);
+              const result = data.result || null;
+              if (result) {
+                appendChat('assistant', describeResult(result));
+                appendChat('assistant', '', { render: () => buildRecommendationElement(result) });
+              } else {
+                appendChat('assistant', 'El agente no devolvió resultados.');
               }
-              pendingPatch = data.pending_patch || null;
-              renderPendingPatch();
             } catch (error) {
               appendChat('assistant', error.message || 'Agent error');
+            } finally {
+              setChatLoading(false);
             }
           });
         }

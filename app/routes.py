@@ -18,7 +18,7 @@ from reportlab.pdfgen import canvas
 
 from .models import Activity, Day, GeneralItem, Trip
 from .services.ai import AIGenerationError, generate_itinerary, build_trip_prompt
-from .services.agent_activities import run_simple_agent
+from .services.agent import run_simple_agent
 from .utils.maps import enrich_with_maps_links, build_itinerary_maps_url
 from . import dal
 
@@ -970,16 +970,9 @@ def apply_hotel_endpoint():
     trip_id = payload.get("trip_id")
     day = payload.get("day")
     hotel = payload.get("hotel")
-    index = payload.get("index")
     if not trip_id or not day:
         return jsonify({"error": "trip_id and day are required"}), 400
-    pending_patch = flask_session.get(_pending_key(trip_id))
-    if hotel is None and isinstance(index, int):
-        if pending_patch and pending_patch.get("type") == "hotel_proposals" and pending_patch.get("day") == day:
-            candidates = pending_patch.get("candidates") or []
-            if 0 <= index < len(candidates):
-                hotel = candidates[index]
-    if not hotel:
+    if not isinstance(hotel, dict):
         return jsonify({"error": "Hotel payload missing"}), 400
     try:
         snapshot = dal.apply_hotel(trip_id, day, hotel)
@@ -997,11 +990,7 @@ def apply_activity_endpoint():
     activity = payload.get("activity")
     if not trip_id or not day:
         return jsonify({"error": "trip_id and day are required"}), 400
-    if activity is None:
-        pending_patch = flask_session.get(_pending_key(trip_id))
-        if pending_patch and pending_patch.get("type") == "activity_proposal" and pending_patch.get("day") == day:
-            activity = pending_patch.get("candidate")
-    if not activity:
+    if not isinstance(activity, dict):
         return jsonify({"error": "Activity payload missing"}), 400
     try:
         snapshot = dal.apply_activity(trip_id, day, activity)
