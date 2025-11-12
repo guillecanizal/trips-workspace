@@ -3,23 +3,22 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from typing import Any, Callable, Dict, Literal, Optional, TypedDict
 
-from fastapi import FastAPI, HTTPException
 from langchain_core.tools import tool
 from langchain_ollama import ChatOllama
 from langgraph.graph import END, StateGraph
-from pydantic import BaseModel, Field
 
 from app import dal
 
-# MEJORA: Usar modelo más potente con configuración optimizada
+MODEL_NAME = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
 MODEL = ChatOllama(
-    model="llama3.1:8b",  # Mejor modelo para tool calling
-    temperature=0.1,  # Temperatura baja para decisiones más deterministas
-    num_ctx=2048,  # Contexto suficiente
-    format="json",  # CRÍTICO: Forzar salida JSON
+    model=MODEL_NAME,
+    temperature=0.1,
+    num_ctx=2048,
+    format="json",
 )
 
 DEFAULT_CANDIDATE_COUNT = 5
@@ -38,15 +37,6 @@ class AgentState(TypedDict):
     day_index: Optional[int]
     requested_count: Optional[int]
     result: Dict[str, Any] | None
-
-
-class AgentRequest(BaseModel):
-    trip_id: int = Field(..., gt=0)
-    message: str = Field(..., min_length=1)
-    n: Optional[int] = Field(default=None, gt=0, le=20)
-
-
-app = FastAPI()
 
 
 def _clean_text(value: Optional[str]) -> str:
@@ -471,14 +461,4 @@ def run_simple_agent(trip_id: int, message: str) -> Dict[str, Any]:
     result = final_state.get("result")
     if not result:
         raise ValueError("agent_failed")
-    return result
-
-
-@app.post("/agent/simple-activities")
-def simple_activities_endpoint(payload: AgentRequest):
-    enriched_message = _format_message_with_count(payload.message, payload.n)
-    try:
-        result = run_simple_agent(payload.trip_id, enriched_message)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return result

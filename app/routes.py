@@ -154,6 +154,31 @@ def _safe_float(value):
         return None
 
 
+def _safe_int(value):
+    if value in (None, ""):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_bool(value):
+    if isinstance(value, bool):
+        return value
+    if value in (None, ""):
+        return None
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "yes", "y", "on"}:
+            return True
+        if normalized in {"false", "0", "no", "n", "off"}:
+            return False
+    return None
+
+
 def apply_ai_payload(session, trip: Trip, payload: dict) -> dict[str, int]:
     summary = {"days": 0, "activities": 0, "general_items": 0}
     day_lookup = {day.date.isoformat(): day for day in trip.days if day.date}
@@ -170,7 +195,20 @@ def apply_ai_payload(session, trip: Trip, payload: dict) -> dict[str, int]:
             day.hotel_location = hotel.get("location")
         if hotel.get("notes") or hotel.get("description"):
             day.hotel_description = hotel.get("notes") or hotel.get("description")
-        day.hotel_maps_link = optional_str(hotel.get("maps_link")) if hotel.get("maps_link") else None
+        if hotel.get("reservation_id"):
+            day.hotel_reservation_id = hotel.get("reservation_id")
+        if hotel.get("price") is not None or hotel.get("price_per_night") is not None:
+            price_value = hotel.get("price")
+            if price_value is None:
+                price_value = hotel.get("price_per_night")
+            day.hotel_price = _safe_float(price_value)
+        day.hotel_link = optional_str(hotel.get("link"))
+        day.hotel_maps_link = optional_str(hotel.get("maps_link"))
+        day.hotel_cancelable = _safe_bool(hotel.get("cancelable"))
+
+        day.distance_km = _safe_float(day_info.get("distance_km"))
+        day.distance_hours = _safe_int(day_info.get("distance_hours"))
+        day.distance_minutes = _safe_int(day_info.get("distance_minutes"))
 
         for activity_info in day_info.get("activities", []) or []:
             name = (activity_info.get("name") or "").strip()
@@ -190,6 +228,7 @@ def apply_ai_payload(session, trip: Trip, payload: dict) -> dict[str, int]:
                 reservation_id=optional_str(activity_info.get("reservation_id")),
                 link=optional_str(activity_info.get("link")),
                 maps_link=optional_str(activity_info.get("maps_link")),
+                cancelable=_safe_bool(activity_info.get("cancelable")),
             )
             session.add(activity)
             summary["activities"] += 1
@@ -205,7 +244,9 @@ def apply_ai_payload(session, trip: Trip, payload: dict) -> dict[str, int]:
             description=item.get("description") or None,
             reservation_id=item.get("reservation_id") or None,
             price=_safe_float(item.get("price")),
-            link=item.get("link") or None,
+            link=optional_str(item.get("link")),
+            maps_link=optional_str(item.get("maps_link")),
+            cancelable=_safe_bool(item.get("cancelable")),
         )
         session.add(general_item)
         summary["general_items"] += 1

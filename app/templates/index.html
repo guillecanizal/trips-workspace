@@ -43,6 +43,7 @@
                 <th>Reservation</th>
                 <th>Price</th>
                 <th>Links</th>
+                <th>Cancelable</th>
               </tr>
             </thead>
             <tbody>
@@ -60,6 +61,7 @@
                       <a href="{{ item.maps_link }}" target="_blank" rel="noreferrer">Map</a>
                     {% endif %}
                   </td>
+                  <td>{{ item.cancelable if item.cancelable is not none else "-" }}</td>
                 </tr>
               {% endfor %}
             </tbody>
@@ -82,8 +84,18 @@
                   · <a href="{{ day.hotel_maps_link }}" target="_blank" rel="noreferrer">Map</a>
                 {% endif %}
               </div>
+              <div>
+                Reservation: {{ day.hotel_reservation_id or "-" }}
+                {% if day.hotel_link %}
+                  · <a href="{{ day.hotel_link }}" target="_blank" rel="noreferrer">Link</a>
+                {% endif %}
+              </div>
+              <div>Price: {{ day.hotel_price or "-" }} · Cancelable: {{ day.hotel_cancelable if day.hotel_cancelable is not none else "-" }}</div>
               <div>Description: {{ day.hotel_description or "-" }}</div>
-              <div>Distance: {{ day.distance_km or 0 }} km</div>
+              <div>
+                Distance: {{ day.distance_km or 0 }} km ·
+                Time: {{ day.distance_hours or 0 }}h {{ day.distance_minutes or 0 }}m
+              </div>
               {% if day.activities %}
                 <table class="table-like" style="margin-top:0.5rem;">
                   <thead>
@@ -93,7 +105,8 @@
                       <th>Description</th>
                       <th>Price</th>
                       <th>Reservation</th>
-                      <th>Map</th>
+                      <th>Links</th>
+                      <th>Cancelable</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -105,12 +118,17 @@
                         <td>{{ activity.price or "-" }}</td>
                         <td>{{ activity.reservation_id or "-" }}</td>
                         <td>
+                          {% if activity.link %}
+                            <a href="{{ activity.link }}" target="_blank" rel="noreferrer">Details</a>
+                          {% endif %}
                           {% if activity.maps_link %}
                             <a href="{{ activity.maps_link }}" target="_blank" rel="noreferrer">Map</a>
-                          {% else %}
+                          {% endif %}
+                          {% if not activity.link and not activity.maps_link %}
                             -
                           {% endif %}
                         </td>
+                        <td>{{ activity.cancelable if activity.cancelable is not none else "-" }}</td>
                       </tr>
                     {% endfor %}
                   </tbody>

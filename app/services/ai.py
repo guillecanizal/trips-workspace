@@ -48,11 +48,19 @@ def _build_messages(prompt: str) -> list[dict[str, str]]:
         "days": [
             {
                 "date": "YYYY-MM-DD",
+                "distance_km": 0,
+                "distance_hours": 0,
+                "distance_minutes": 0,
                 "hotel": {
                     "name": "",
                     "location": "",
                     "description": "",
-                    "notes": ""
+                    "notes": "",
+                    "price": None,
+                    "reservation_id": None,
+                    "link": "",
+                    "maps_link": "",
+                    "cancelable": None,
                 },
                 "activities": [
                     {
@@ -63,7 +71,9 @@ def _build_messages(prompt: str) -> list[dict[str, str]]:
                         "estimated_time_hours": 0,
                         "price": None,
                         "reservation_id": None,
-                        "link": ""
+                        "link": "",
+                        "maps_link": "",
+                        "cancelable": None,
                     }
                 ],
             }
@@ -75,7 +85,8 @@ def _build_messages(prompt: str) -> list[dict[str, str]]:
                 "reservation_id": None,
                 "price": None,
                 "link": "",
-                "maps_link": ""
+                "maps_link": "",
+                "cancelable": None,
             }
         ],
     }
@@ -92,6 +103,8 @@ def _build_messages(prompt: str) -> list[dict[str, str]]:
             "- Activities must be unique, relevant, and family-friendly if context suggests children are included.",
             "- Always provide at least 2–3 thoughtful activities per day.",
             "- Populate every provided field; use null when data is unknown.",
+            "- Add realistic drive summaries per day via distance_km / distance_hours / distance_minutes when applicable.",
+            "- Include hotel pricing/cancelation info when available, and add basic cost estimates for activities or logistics.",
         ]
     )
     system_prompt = (
