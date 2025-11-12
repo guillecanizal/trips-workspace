@@ -17,7 +17,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
 from .models import Activity, Day, GeneralItem, Trip
-from .services.ai import AIGenerationError, generate_itinerary, build_trip_prompt
+from .services.ai import AIGenerationError, generate_itinerary, build_full_prompt_text
 from .services.agent import run_simple_agent
 from .utils.maps import enrich_with_maps_links, build_itinerary_maps_url
 from . import dal
@@ -1075,7 +1075,7 @@ def generate_trip_ai(trip_id: int):
         )
 
         if generate_only:
-            prompt = build_trip_prompt(trip.name, trip.description, day_dates)
+            prompt = build_full_prompt_text(trip.name, trip.description, day_dates)
             flask_session["manual_ai_prompt"] = prompt
             current_app.logger.info(
                 "Manual prompt generated",

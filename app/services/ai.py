@@ -35,7 +35,7 @@ def build_trip_prompt(trip_name: str, description: str | None, days: list[date])
         + desc
         + "\nDates (one per line):\n"
         + days_str
-        + "\nFor each date produce a place to stay (city or hotel idea) and at least 2-3 thoughtful activities that fit the day."
+        + "\nFor each date produce a place to stay (city or hotel idea) and at least 2 thoughtful activities that fit the day."
         + " Cover every listed date exactly once and avoid repeating earlier days."
         + "\nWhen recommending hotels include location (city/area) and a concise description."
         + "\nFor every activity, populate a location (city/town or neighborhood) so travelers know where it happens."
@@ -118,6 +118,18 @@ def _build_messages(prompt: str) -> list[dict[str, str]]:
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": prompt},
     ]
+
+
+def build_full_prompt_text(trip_name: str, description: str | None, days: list[date]) -> str:
+    """Return the exact SYSTEM/USER prompt that will be sent to the LLM."""
+    prompt = build_trip_prompt(trip_name, description, days)
+    messages = _build_messages(prompt)
+    return (
+        "SYSTEM:\n"
+        + messages[0]["content"]
+        + "\n\nUSER:\n"
+        + messages[1]["content"]
+    )
 
 
 def generate_itinerary(
