@@ -223,7 +223,11 @@
       <h3>AI assistant</h3>
       <button type="button" class="icon-button" data-ai-close aria-label="Close AI assistant">✕</button>
     </div>
-    <section class="ai-section">
+    <div class="ai-tabs">
+      <button type="button" class="ai-tab active" data-ai-mode="oneshot">One Shot</button>
+      <button type="button" class="ai-tab" data-ai-mode="chat">Chat</button>
+    </div>
+    <section id="ai-oneshot-panel" class="ai-section">
       <div class="ai-section-head">
         <div>
           <p class="ai-section-title">Prompt toolkit</p>
@@ -252,7 +256,7 @@
         <button type="button" class="icon-button" data-copy-target="ai-last-prompt" aria-label="Copy prompt">📋</button>
       </div>
     </section>
-    <section class="ai-section">
+    <section id="ai-json-panel" class="ai-section">
       <p class="ai-section-title">AI response JSON</p>
       <p class="ai-warning">Applying an AI response will overwrite all manual edits.</p>
       <form id="ai-response-form" method="post" action="{{ url_for('main.apply_ai_response', trip_id=trip.id) }}">
@@ -263,10 +267,33 @@
         </div>
       </form>
     </section>
+    <section id="ai-chat-panel" class="ai-section" hidden>
+      <div class="ai-section-head">
+        <div>
+          <p class="ai-section-title">Chat for incremental edits</p>
+          <small>Propose or apply tweaks without redoing the full trip.</small>
+        </div>
+      </div>
+      <div id="ai-chat-log" class="ai-chat-log" aria-live="polite"></div>
+      <div id="ai-chat-actions" class="ai-chat-actions" hidden></div>
+      <form id="ai-chat-form" class="ai-chat-form">
+        <label for="ai-chat-input">Message</label>
+        <textarea id="ai-chat-input" rows="3" placeholder="Ask for hotel ideas, add activities, view trip, etc." required></textarea>
+        <div class="action-icons" style="justify-content:flex-end;">
+          <button type="submit" class="ai-generate-btn">
+            <span class="ai-btn-icon">💬</span>
+            <span>Send</span>
+          </button>
+        </div>
+      </form>
+    </section>
   </aside>
   {% if show_ai_sidebar %}
     <script>
       window.__openAISidebar = true;
     </script>
   {% endif %}
+  <script>
+    window.__TRIP_ID = {{ trip.id }};
+  </script>
 {% endblock %}

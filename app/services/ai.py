@@ -132,7 +132,7 @@ def generate_itinerary(
         chat = client_factory()
     else:
         chat = ChatOllama(
-            model=model or os.environ.get("OLLAMA_MODEL", "mistral"),
+            model=model or os.environ.get("OLLAMA_MODEL", "llama3.1:8b"),
             temperature=0,
         )
 

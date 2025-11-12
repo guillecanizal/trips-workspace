@@ -1,4 +1,8 @@
 Flask>=3.0.0
 SQLAlchemy>=2.0.0
 langchain-ollama>=0.1.0
+langchain-core>=0.1.46
 reportlab>=4.0.0
+langgraph>=0.1.0
+pydantic>=1.10
+fastapi>=0.110.0

@@ -18,7 +18,9 @@ from reportlab.pdfgen import canvas
 
 from .models import Activity, Day, GeneralItem, Trip
 from .services.ai import AIGenerationError, generate_itinerary, build_trip_prompt
+from .services.agent_activities import run_simple_agent
 from .utils.maps import enrich_with_maps_links, build_itinerary_maps_url
+from . import dal
 
 
 bp = Blueprint("main", __name__)
@@ -251,6 +253,10 @@ def load_latest_ai_log(trip_id: int) -> dict[str, str] | None:
         "prompt_file": str(prompt_file),
         "response_file": str(response_file),
     }
+
+
+def _pending_key(trip_id: int) -> str:
+    return f"pending_patch_{trip_id}"
 
 
 @bp.route("/")
@@ -941,6 +947,81 @@ def export_trip_pdf(trip_id: int):
         )
     finally:
         session.close()
+
+
+@bp.post("/agent")
+def agent_chat():
+    payload = request.get_json(silent=True) or {}
+    trip_id = payload.get("trip_id")
+    message = (payload.get("message") or "").strip()
+    if not trip_id or not message:
+        return jsonify({"error": "trip_id and message are required"}), 400
+    try:
+        result = run_simple_agent(trip_id, message)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    flask_session.pop(_pending_key(trip_id), None)
+    return jsonify({"result": result, "pending_patch": None})
+
+
+@bp.post("/apply/hotel")
+def apply_hotel_endpoint():
+    payload = request.get_json(silent=True) or {}
+    trip_id = payload.get("trip_id")
+    day = payload.get("day")
+    hotel = payload.get("hotel")
+    index = payload.get("index")
+    if not trip_id or not day:
+        return jsonify({"error": "trip_id and day are required"}), 400
+    pending_patch = flask_session.get(_pending_key(trip_id))
+    if hotel is None and isinstance(index, int):
+        if pending_patch and pending_patch.get("type") == "hotel_proposals" and pending_patch.get("day") == day:
+            candidates = pending_patch.get("candidates") or []
+            if 0 <= index < len(candidates):
+                hotel = candidates[index]
+    if not hotel:
+        return jsonify({"error": "Hotel payload missing"}), 400
+    try:
+        snapshot = dal.apply_hotel(trip_id, day, hotel)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    flask_session.pop(_pending_key(trip_id), None)
+    return jsonify({"day": snapshot})
+
+
+@bp.post("/apply/activity")
+def apply_activity_endpoint():
+    payload = request.get_json(silent=True) or {}
+    trip_id = payload.get("trip_id")
+    day = payload.get("day")
+    activity = payload.get("activity")
+    if not trip_id or not day:
+        return jsonify({"error": "trip_id and day are required"}), 400
+    if activity is None:
+        pending_patch = flask_session.get(_pending_key(trip_id))
+        if pending_patch and pending_patch.get("type") == "activity_proposal" and pending_patch.get("day") == day:
+            activity = pending_patch.get("candidate")
+    if not activity:
+        return jsonify({"error": "Activity payload missing"}), 400
+    try:
+        snapshot = dal.apply_activity(trip_id, day, activity)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    flask_session.pop(_pending_key(trip_id), None)
+    return jsonify({"day": snapshot})
+
+
+@bp.get("/itinerary/url")
+def itinerary_url():
+    trip_id = request.args.get("trip_id", type=int)
+    if not trip_id:
+        return jsonify({"error": "trip_id is required"}), 400
+    try:
+        compact = dal.get_trip_compact(trip_id)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 404
+    url = build_itinerary_maps_url({"days": compact.get("days", [])})
+    return jsonify({"url": url})
 
 
 @bp.post("/trips/<int:trip_id>/generate-ai")

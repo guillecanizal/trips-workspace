@@ -154,6 +154,27 @@
         border-bottom: 1px solid rgba(248, 250, 252, 0.1);
         padding-bottom: 0.5rem;
       }
+      .ai-tabs {
+        display: flex;
+        gap: 0.5rem;
+        border-bottom: 1px solid rgba(248, 250, 252, 0.08);
+        padding-bottom: 0.5rem;
+      }
+      .ai-tab {
+        flex: 1;
+        text-align: center;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        padding: 0.35rem 0.4rem;
+        background: transparent;
+        color: #d1d5db;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .ai-tab.active {
+        background: #f8fafc;
+        color: #0f172a;
+      }
       .ai-section {
         display: flex;
         flex-direction: column;
@@ -213,6 +234,57 @@
       }
       .ai-btn-icon {
         font-size: 1rem;
+      }
+      .ai-chat-log {
+        min-height: 150px;
+        max-height: 280px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        padding: 0.6rem;
+        background: #0b0b0b;
+        border: 1px solid rgba(248, 250, 252, 0.08);
+        border-radius: 0.5rem;
+      }
+      .ai-chat-entry {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        font-size: 0.9rem;
+      }
+      .ai-chat-entry.user {
+        color: #60a5fa;
+      }
+      .ai-chat-entry.assistant {
+        color: #e2e8f0;
+      }
+      .ai-chat-entry pre {
+        background: #090909;
+        border-radius: 0.35rem;
+        padding: 0.4rem;
+        overflow-x: auto;
+      }
+      .ai-chat-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .ai-chat-action-card {
+        border: 1px solid rgba(248, 250, 252, 0.15);
+        border-radius: 0.5rem;
+        padding: 0.6rem;
+        background: #111;
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+      }
+      .ai-chat-form textarea {
+        background: #0b0b0b;
+        color: #f8fafc;
+        border: 1px solid rgba(248, 250, 252, 0.15);
+        border-radius: 0.45rem;
+        padding: 0.5rem;
       }
       body.ai-sidebar-open {
         overflow: hidden;
@@ -529,8 +601,188 @@
           });
         });
 
+        const aiTabs = document.querySelectorAll('.ai-tab');
+        const oneshotPanel = document.getElementById('ai-oneshot-panel');
+        const jsonPanel = document.getElementById('ai-json-panel');
+        const chatPanel = document.getElementById('ai-chat-panel');
+        const toggleSection = (section, show) => {
+          if (!section) return;
+          if (show) {
+            section.removeAttribute('hidden');
+            section.style.display = '';
+          } else {
+            section.setAttribute('hidden', 'true');
+            section.style.display = 'none';
+          }
+        };
+        const setAiMode = (mode) => {
+          window.__openAISidebarMode = mode;
+          aiTabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.aiMode === mode));
+          if (mode === 'chat') {
+            toggleSection(oneshotPanel, false);
+            toggleSection(jsonPanel, false);
+            toggleSection(chatPanel, true);
+          } else {
+            toggleSection(oneshotPanel, true);
+            toggleSection(jsonPanel, true);
+            toggleSection(chatPanel, false);
+          }
+        };
+        aiTabs.forEach((tab) => {
+          tab.addEventListener('click', () => setAiMode(tab.dataset.aiMode || 'oneshot'));
+        });
+
+        const chatLog = document.getElementById('ai-chat-log');
+        const chatActions = document.getElementById('ai-chat-actions');
+        const chatForm = document.getElementById('ai-chat-form');
+        const chatInput = document.getElementById('ai-chat-input');
+        const TRIP_ID = window.__TRIP_ID;
+        let pendingPatch = null;
+
+        const appendChat = (role, content, isJson = false) => {
+          if (!chatLog) return;
+          const entry = document.createElement('div');
+          entry.className = `ai-chat-entry ${role}`;
+          const label = document.createElement('strong');
+          label.textContent = role === 'user' ? 'You' : 'Assistant';
+          entry.appendChild(label);
+          if (isJson) {
+            const pre = document.createElement('pre');
+            pre.textContent = content;
+            entry.appendChild(pre);
+          } else {
+            const span = document.createElement('span');
+            span.textContent = content;
+            entry.appendChild(span);
+          }
+          chatLog.appendChild(entry);
+          chatLog.scrollTop = chatLog.scrollHeight;
+        };
+
+        const renderPendingPatch = () => {
+          if (!chatActions) return;
+          chatActions.innerHTML = '';
+          if (!pendingPatch) {
+            chatActions.setAttribute('hidden', 'true');
+            return;
+          }
+          chatActions.removeAttribute('hidden');
+          if (pendingPatch.type === 'hotel_proposals') {
+            const list = document.createElement('div');
+            pendingPatch.candidates?.forEach((candidate, index) => {
+              const card = document.createElement('div');
+              card.className = 'ai-chat-action-card';
+              card.innerHTML = `<strong>${candidate.name || 'Hotel candidate'}</strong><span>${candidate.location || ''}</span><small>${candidate.description || candidate.notes || ''}</small>`;
+              const btn = document.createElement('button');
+              btn.className = 'ai-generate-btn';
+              btn.type = 'button';
+              btn.textContent = 'Apply hotel';
+              btn.addEventListener('click', () => applyHotelCandidate(index));
+              card.appendChild(btn);
+              list.appendChild(card);
+            });
+            chatActions.appendChild(list);
+          } else if (pendingPatch.type === 'activity_proposal' && pendingPatch.candidate) {
+            const card = document.createElement('div');
+            card.className = 'ai-chat-action-card';
+            card.innerHTML = `<strong>${pendingPatch.candidate.name}</strong><span>${pendingPatch.candidate.location || ''}</span><small>${pendingPatch.candidate.summary || ''}</small>`;
+            const btn = document.createElement('button');
+            btn.className = 'ai-generate-btn';
+            btn.type = 'button';
+            btn.textContent = 'Apply activity';
+            btn.addEventListener('click', () => applyActivityCandidate());
+            card.appendChild(btn);
+            chatActions.appendChild(card);
+          }
+        };
+
+        const prettyJSON = (data) => {
+          try {
+            return JSON.stringify(data, null, 2);
+          } catch (error) {
+            return String(data);
+          }
+        };
+
+        const parseJson = async (response) => {
+          try {
+            return await response.json();
+          } catch (error) {
+            return null;
+          }
+        };
+
+        const callAgent = async (message) => {
+          const response = await fetch('/agent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ trip_id: TRIP_ID, message }),
+          });
+          const data = await parseJson(response);
+          if (!response.ok) {
+            const err = data?.error || 'Agent request failed';
+            throw new Error(err);
+          }
+          return data || {};
+        };
+
+        const applyHotelCandidate = async (index) => {
+          const day = pendingPatch?.day;
+          if (!day) return;
+          const payload = { trip_id: TRIP_ID, day, index };
+          const response = await fetch('/apply/hotel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await parseJson(response);
+          if (!response.ok) throw new Error(data?.error || 'Failed to apply hotel');
+          pendingPatch = null;
+          renderPendingPatch();
+          appendChat('assistant', prettyJSON(data || {}), true);
+        };
+
+        const applyActivityCandidate = async () => {
+          const day = pendingPatch?.day;
+          if (!day) return;
+          const payload = { trip_id: TRIP_ID, day };
+          const response = await fetch('/apply/activity', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const data = await parseJson(response);
+          if (!response.ok) throw new Error(data?.error || 'Failed to apply activity');
+          pendingPatch = null;
+          renderPendingPatch();
+          appendChat('assistant', prettyJSON(data || {}), true);
+        };
+
+        if (chatForm && chatInput) {
+          chatForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const message = chatInput.value.trim();
+            if (!message) return;
+            appendChat('user', message);
+            chatInput.value = '';
+            try {
+              const data = await callAgent(message);
+              if (data.result) {
+                appendChat('assistant', prettyJSON(data.result), true);
+              }
+              pendingPatch = data.pending_patch || null;
+              renderPendingPatch();
+            } catch (error) {
+              appendChat('assistant', error.message || 'Agent error');
+            }
+          });
+        }
+
         if (window.__openAISidebar) {
           setAiSidebar(true);
+        }
+        if (oneshotPanel || chatPanel) {
+          setAiMode(window.__openAISidebarMode || 'oneshot');
         }
 
         const aiResponseForm = document.getElementById('ai-response-form');
