@@ -38,19 +38,16 @@ The system follows a standard MVC-like pattern with Flask. It integrates with a 
 graph TD
     User((User)) -->|Browser| Web[Flask Web App]
     
-    subgraph "Backend (app/)"
+    subgraph Backend ["Backend (app/)"]
         Web -->|Routes| Routes[routes.py]
         Routes -->|ORM| Models[models.py]
         Routes -->|Helpers| DAL[dal.py]
         Routes -->|Templates| Views[templates/]
-        
-        subgraph "AI Services (app/services/)"
-            Routes -->|Chat| Agent[agent.py]
-            Routes -->|Generate| AIGen[ai.py]
-        end
+        Routes -->|Chat| Agent[agent.py]
+        Routes -->|Generate| AIGen[ai.py]
     end
     
-    subgraph "Data & External"
+    subgraph External ["Data & External"]
         Models <-->|SQLAlchemy| DB[(SQLite DB)]
         Agent -->|LangGraph| Ollama[Ollama (Local LLM)]
         AIGen -->|LangChain| Ollama
@@ -141,7 +138,7 @@ The database uses SQLite by default with SQLAlchemy ORM.
     - **Models**: `app/models.py` uses modern SQLAlchemy `Mapped[...]` type hints.
     - **Templates**: Standard Jinja2 templates in `app/templates/` (server-side rendering).
 - **AI Integration**:
-    - **`app/services/ai.py`**: Uses `langchain-ollama` to generate full itineraries. It constructs large system prompts with JSON definitions.
+    - **`app/services/ai.py`**: Uses `langchain-ollama` to generate full itineraries. It constructs large system prompts with JSON definitions and supports real-time streaming via Server-Sent Events (SSE).
     - **`app/services/agent.py`**: Uses a `LangGraph` StateGraph to build a conversational agent that detects intent (activities vs. hotels) and calls tools.
 - **Convention**:
     - Use `from __future__ import annotations` in all files.
