@@ -1,299 +1,412 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <a href="{{ url_for('main.list_trips_page') }}">← Back to trips</a>
-  <h1>{{ trip.name }}</h1>
-  <p>{{ trip.description or "No description yet" }}</p>
-  <p>
-    {{ trip.start_date or "?" }} → {{ trip.end_date or "?" }}
-  </p>
-  <div class="trip-meta" style="margin-bottom:1rem;">
-    <span class="pill">{{ stats.day_count }} days</span>
-    <span class="pill">{{ stats.activity_count }} activities</span>
-    <span class="pill">{{ stats.general_item_count }} items</span>
-    <span class="pill">Total cost {{ '%.2f' % ((stats.total_price or 0) | float) }}</span>
-    <span class="pill">{{ stats.total_distance_km or 0 }} km</span>
-  </div>
+<a href="{{ url_for('main.list_trips_page') }}">← Back to trips</a>
+<h1>{{ trip.name }}</h1>
+<p>{{ trip.description or "No description yet" }}</p>
+<p>
+  {{ trip.start_date or "?" }} → {{ trip.end_date or "?" }}
+</p>
+<div class="trip-meta" style="margin-bottom:1rem;">
+  <span class="pill">{{ stats.day_count }} days</span>
+  <span class="pill">{{ stats.activity_count }} activities</span>
+  <span class="pill">{{ stats.general_item_count }} items</span>
+  <span class="pill">Total cost {{ '%.2f' % ((stats.total_price or 0) | float) }}</span>
+  <span class="pill">{{ stats.total_distance_km or 0 }} km</span>
+</div>
 
-  <div class="ai-launcher">
-    <button id="ai-open-button" type="button" class="icon-button ai-toggle" aria-label="Open AI assistant">
-      🤖 Open AI assistant
-    </button>
-  </div>
+<div class="ai-launcher">
+  <button id="ai-open-button" type="button" class="icon-button ai-toggle" aria-label="Open AI assistant">
+    🤖 Open AI assistant
+  </button>
+</div>
 
-  <details class="trip-panel collapsible">
-    <summary>Edit trip</summary>
-    <form method="post">
-      <label for="name">Name</label>
-      <input id="name" name="name" value="{{ trip.name }}" required />
+<details class="trip-panel collapsible">
+  <summary>Edit trip</summary>
+  <form method="post">
+    <label for="name">Name</label>
+    <input id="name" name="name" value="{{ trip.name }}" required />
 
-      <label for="description">Description</label>
-      <textarea id="description" name="description" rows="3">{{ trip.description or "" }}</textarea>
+    <label for="description">Description</label>
+    <textarea id="description" name="description" rows="3">{{ trip.description or "" }}</textarea>
 
-      <label for="start_date">Start date</label>
-      <input id="start_date" name="start_date" type="date" value="{{ trip.start_date.isoformat() if trip.start_date else '' }}" />
+    <label for="start_date">Start date</label>
+    <input id="start_date" name="start_date" type="date"
+      value="{{ trip.start_date.isoformat() if trip.start_date else '' }}" />
 
-      <label for="end_date">End date</label>
-      <input id="end_date" name="end_date" type="date" value="{{ trip.end_date.isoformat() if trip.end_date else '' }}" />
+    <label for="end_date">End date</label>
+    <input id="end_date" name="end_date" type="date" value="{{ trip.end_date.isoformat() if trip.end_date else '' }}" />
 
-      <div style="display:flex;gap:0.5rem;align-items:center;">
-        <button type="submit" class="icon-button save" aria-label="Save trip">💾</button>
-        <button
-          type="submit"
-          class="icon-button danger"
-          aria-label="Delete trip"
-          formaction="{{ url_for('main.delete_trip_page', trip_id=trip.id) }}"
-          formmethod="post"
-          onclick="return confirm('Delete this entire trip and all related data?');"
-        >🗑</button>
-      </div>
-    </form>
-  </details>
-
-  <details class="trip-panel collapsible">
-    <summary>General items</summary>
-    <div>
-      {% if general_items %}
-        <div class="table-wrapper">
-          <table class="table-like">
-            <tbody>
-              {% for item in general_items %}
-                <tr>
-                  <td colspan="6">
-                    <div class="inline-wrapper">
-                      <form data-inline-form method="post" action="{{ url_for('main.update_general_item_page', item_id=item.id) }}" class="inline-form">
-                        <input name="name" value="{{ item.name }}" placeholder="Name" readonly required />
-                        <input name="description" value="{{ item.description or '' }}" placeholder="Description" readonly />
-                        <input name="reservation_id" value="{{ item.reservation_id or '' }}" placeholder="Reservation" readonly />
-                        <input name="price" type="number" step="0.01" value="{{ item.price or '' }}" placeholder="Price" readonly />
-                        <input name="link" type="url" value="{{ item.link or '' }}" placeholder="Link" readonly />
-                        <input name="maps_link" type="url" value="{{ item.maps_link or '' }}" placeholder="Maps link" readonly />
-                        <select name="cancelable" disabled>
-                          <option value="" {% if item.cancelable is none %}selected{% endif %}>Unknown</option>
-                          <option value="true" {% if item.cancelable %}selected{% endif %}>Yes</option>
-                          <option value="false" {% if item.cancelable is not none and not item.cancelable %}selected{% endif %}>No</option>
-                        </select>
-                        <div class="action-icons">
-                          <button type="submit" class="icon-button save inline-save" disabled aria-label="Save item">💾</button>
-                          <button form="delete-item-{{ item.id }}" type="submit" class="icon-button danger" aria-label="Delete item">🗑</button>
-                        </div>
-                      </form>
-                      </div>
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      {% else %}
-        <p>No flights, rentals, or other items yet.</p>
-      {% endif %}
-      <form id="add-general-item" method="post" action="{{ url_for('main.create_general_item_page', trip_id=trip.id) }}">
-        <h3>Add general item</h3>
-        <div class="inline-form">
-          <input name="name" placeholder="Name" required />
-          <input name="description" placeholder="Description" />
-          <input name="reservation_id" placeholder="Reservation" />
-          <input name="price" type="number" step="0.01" placeholder="Price" />
-          <input name="link" type="url" placeholder="Link" />
-          <input name="maps_link" type="url" placeholder="Maps link" />
-          <select name="cancelable">
-            <option value="" selected>Unknown</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
-          </select>
-        </div>
-        <div class="action-icons" style="justify-content:flex-end;">
-          <button type="submit" class="icon-button add" aria-label="Add item">➕</button>
-        </div>
-      </form>
+    <div style="display:flex;gap:0.5rem;align-items:center;">
+      <button type="submit" class="icon-button save" aria-label="Save trip">💾</button>
+      <button type="submit" class="icon-button danger" aria-label="Delete trip"
+        formaction="{{ url_for('main.delete_trip_page', trip_id=trip.id) }}" formmethod="post"
+        onclick="return confirm('Delete this entire trip and all related data?');">🗑</button>
     </div>
-  </details>
+  </form>
+</details>
 
-  {% if days %}
-    {% for day in days %}
-      <details class="trip-panel collapsible">
-        <summary>Day {{ loop.index }} – {{ day.date or "Unscheduled day" }}</summary>
-        <div class="inline-row" style="justify-content:flex-start;gap:0.6rem;margin:0.4rem 0 0.8rem;">
-          <strong>Hotel location:</strong>
-          <span>{{ day.hotel_location or "Unknown location" }}</span>
-          {% if day.hotel_maps_link %}
-            <a href="{{ day.hotel_maps_link }}" target="_blank" rel="noreferrer" class="icon-button" title="Open hotel in Google Maps">🗺️</a>
-          {% endif %}
-        </div>
-        <form data-inline-form method="post" action="{{ url_for('main.update_day_page', day_id=day.id) }}" class="inline-form">
-          <input name="date" type="date" value="{{ day.date.isoformat() if day.date else '' }}" readonly />
-          <input name="hotel_name" value="{{ day.hotel_name or '' }}" placeholder="Hotel name" readonly />
-          <input name="hotel_location" value="{{ day.hotel_location or '' }}" placeholder="Location" readonly />
-          <textarea name="hotel_description" rows="2" placeholder="Description" readonly>{{ day.hotel_description or '' }}</textarea>
-          <input name="hotel_reservation_id" value="{{ day.hotel_reservation_id or '' }}" placeholder="Reservation" readonly />
-          <input name="hotel_price" type="number" step="0.01" value="{{ day.hotel_price or '' }}" placeholder="Hotel price" readonly />
-          <input name="hotel_link" type="url" value="{{ day.hotel_link or '' }}" placeholder="Hotel link" readonly />
-          <input name="hotel_maps_link" type="url" value="{{ day.hotel_maps_link or '' }}" placeholder="Maps link" readonly />
-          <select name="hotel_cancelable" disabled>
-            <option value="" {% if day.hotel_cancelable is none %}selected{% endif %}>Unknown</option>
-            <option value="true" {% if day.hotel_cancelable %}selected{% endif %}>Yes</option>
-            <option value="false" {% if day.hotel_cancelable is not none and not day.hotel_cancelable %}selected{% endif %}>No</option>
-          </select>
-          <input name="distance_km" type="number" step="0.1" value="{{ day.distance_km or '' }}" placeholder="Distance km" readonly />
-          <input name="distance_hours" type="number" min="0" value="{{ day.distance_hours or '' }}" placeholder="Hours" readonly />
-          <input name="distance_minutes" type="number" min="0" max="59" value="{{ day.distance_minutes or '' }}" placeholder="Minutes" readonly />
-          <div class="action-icons">
-            <button type="submit" class="icon-button save inline-save" disabled aria-label="Save day">💾</button>
-            <button form="delete-day-{{ day.id }}" type="submit" class="icon-button danger" aria-label="Delete day">🗑</button>
-          </div>
-        </form>
-        <form id="delete-day-{{ day.id }}" method="post" action="{{ url_for('main.delete_day_page', day_id=day.id) }}" onsubmit="return confirm('Delete this day and its activities?');"></form>
-
-        <div class="activities">
-          <h4>Activities</h4>
-          {% if day.activities %}
-            {% for activity in day.activities %}
-                <div class="inline-wrapper">
-                  <form data-inline-form method="post" action="{{ url_for('main.update_activity_page', activity_id=activity.id) }}" class="inline-form">
-                    <input name="name" value="{{ activity.name }}" required readonly />
-                    <input name="location" value="{{ activity.location or '' }}" placeholder="Location" readonly />
-                    <textarea name="description" rows="2" readonly>{{ activity.description or '' }}</textarea>
-                    <input name="price" type="number" step="0.01" value="{{ activity.price or '' }}" placeholder="Price" readonly />
-                    <input name="reservation_id" value="{{ activity.reservation_id or '' }}" placeholder="Reservation" readonly />
-                    <input name="link" type="url" value="{{ activity.link or '' }}" placeholder="Link" readonly />
-                    <input name="maps_link" type="url" value="{{ activity.maps_link or '' }}" placeholder="Maps link" readonly />
-                    <div class="action-icons">
-                      {% if activity.maps_link %}
-                        <a href="{{ activity.maps_link }}" target="_blank" rel="noreferrer" class="icon-button" title="Open activity in Google Maps">🗺️</a>
-                      {% endif %}
-                      <button type="submit" class="icon-button save inline-save" disabled aria-label="Save activity">💾</button>
-                      <button form="delete-activity-{{ activity.id }}" type="submit" class="icon-button danger" aria-label="Delete activity">🗑</button>
-                    </div>
-                  </form>
-                </div>
-            {% endfor %}
-          {% else %}
-            <p>No activities yet.</p>
-          {% endif %}
-
-            <form method="post" action="{{ url_for('main.create_activity_page', day_id=day.id) }}">
-              <div class="inline-form">
-                <input name="name" placeholder="Activity name" required />
-                <input name="location" placeholder="Location" />
-                <textarea name="description" rows="2" placeholder="Description"></textarea>
-                <input name="price" type="number" step="0.01" placeholder="Price" />
-                <input name="reservation_id" placeholder="Reservation" />
-                <input name="link" type="url" placeholder="Link" />
-                <input name="maps_link" type="url" placeholder="Maps link" />
-                <button type="submit" class="icon-button" aria-label="Add activity">➕</button>
+<details class="trip-panel collapsible">
+  <summary>General items</summary>
+  <div>
+    {% if general_items %}
+    <div class="table-wrapper">
+      <table class="table-like">
+        <tbody>
+          {% for item in general_items %}
+          <tr>
+            <td colspan="6">
+              <div class="inline-wrapper">
+                <form data-inline-form method="post"
+                  action="{{ url_for('main.update_general_item_page', item_id=item.id) }}" class="inline-form">
+                  <input name="name" value="{{ item.name }}" placeholder="Name" readonly required />
+                  <input name="description" value="{{ item.description or '' }}" placeholder="Description" readonly />
+                  <input name="reservation_id" value="{{ item.reservation_id or '' }}" placeholder="Reservation"
+                    readonly />
+                  <input name="price" type="number" step="0.01" value="{{ item.price or '' }}" placeholder="Price"
+                    readonly />
+                  <input name="link" type="url" value="{{ item.link or '' }}" placeholder="Link" readonly />
+                  <input name="maps_link" type="url" value="{{ item.maps_link or '' }}" placeholder="Maps link"
+                    readonly />
+                  <select name="cancelable" disabled>
+                    <option value="" {% if item.cancelable is none %}selected{% endif %}>Unknown</option>
+                    <option value="true" {% if item.cancelable %}selected{% endif %}>Yes</option>
+                    <option value="false" {% if item.cancelable is not none and not item.cancelable %}selected{% endif
+                      %}>No</option>
+                  </select>
+                  <div class="action-icons">
+                    <button type="submit" class="icon-button save inline-save" disabled
+                      aria-label="Save item">💾</button>
+                    <button form="delete-item-{{ item.id }}" type="submit" class="icon-button danger"
+                      aria-label="Delete item">🗑</button>
+                  </div>
+                </form>
               </div>
-            </form>
-        </div>
-      </details>
-    {% endfor %}
-  {% else %}
-    <p>No days added yet.</p>
-  {% endif %}
-
-  <details class="trip-panel collapsible">
-    <summary>Add a day</summary>
-    <form id="add-day-form" method="post" action="{{ url_for('main.create_day_page', trip_id=trip.id) }}">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p>No flights, rentals, or other items yet.</p>
+    {% endif %}
+    <form id="add-general-item" method="post" action="{{ url_for('main.create_general_item_page', trip_id=trip.id) }}">
+      <h3>Add general item</h3>
       <div class="inline-form">
-        <input name="date" type="date" placeholder="Date" />
-        <input name="hotel_name" placeholder="Hotel name" />
-        <input name="hotel_location" placeholder="Location" />
-        <textarea name="hotel_description" rows="2" placeholder="Description"></textarea>
-        <input name="hotel_reservation_id" placeholder="Reservation" />
-        <input name="hotel_price" type="number" step="0.01" placeholder="Hotel price" />
-        <input name="hotel_link" type="url" placeholder="Hotel link" />
-        <input name="hotel_maps_link" type="url" placeholder="Maps link" />
-        <select name="hotel_cancelable">
+        <input name="name" placeholder="Name" required />
+        <input name="description" placeholder="Description" />
+        <input name="reservation_id" placeholder="Reservation" />
+        <input name="price" type="number" step="0.01" placeholder="Price" />
+        <input name="link" type="url" placeholder="Link" />
+        <input name="maps_link" type="url" placeholder="Maps link" />
+        <select name="cancelable">
           <option value="" selected>Unknown</option>
           <option value="true">Yes</option>
           <option value="false">No</option>
         </select>
-        <input name="distance_km" type="number" step="0.1" placeholder="Distance km" />
-        <input name="distance_hours" type="number" min="0" placeholder="Hours" />
-        <input name="distance_minutes" type="number" min="0" max="59" placeholder="Minutes" />
       </div>
       <div class="action-icons" style="justify-content:flex-end;">
-        <button type="submit" class="icon-button add" aria-label="Add day">➕</button>
+        <button type="submit" class="icon-button add" aria-label="Add item">➕</button>
       </div>
     </form>
-  </details>
-  <div id="ai-sidebar-backdrop" class="ai-sidebar-backdrop" hidden></div>
-  <aside id="ai-sidebar" class="ai-sidebar" hidden aria-hidden="true">
-    <div class="ai-sidebar-header">
-      <h3>AI assistant</h3>
-      <button type="button" class="icon-button" data-ai-close aria-label="Close AI assistant">✕</button>
+  </div>
+</details>
+
+{% if days %}
+{% for day in days %}
+<details class="trip-panel collapsible">
+  <summary>Day {{ loop.index }} – {{ day.date or "Unscheduled day" }}</summary>
+  <div class="inline-row" style="justify-content:flex-start;gap:0.6rem;margin:0.4rem 0 0.8rem;">
+    <strong>Hotel location:</strong>
+    <span>{{ day.hotel_location or "Unknown location" }}</span>
+    {% if day.hotel_maps_link %}
+    <a href="{{ day.hotel_maps_link }}" target="_blank" rel="noreferrer" class="icon-button"
+      title="Open hotel in Google Maps">🗺️</a>
+    {% endif %}
+  </div>
+  <form data-inline-form method="post" action="{{ url_for('main.update_day_page', day_id=day.id) }}"
+    class="inline-form">
+    <input name="date" type="date" value="{{ day.date.isoformat() if day.date else '' }}" readonly />
+    <input name="hotel_name" value="{{ day.hotel_name or '' }}" placeholder="Hotel name" readonly />
+    <input name="hotel_location" value="{{ day.hotel_location or '' }}" placeholder="Location" readonly />
+    <textarea name="hotel_description" rows="2" placeholder="Description"
+      readonly>{{ day.hotel_description or '' }}</textarea>
+    <input name="hotel_reservation_id" value="{{ day.hotel_reservation_id or '' }}" placeholder="Reservation"
+      readonly />
+    <input name="hotel_price" type="number" step="0.01" value="{{ day.hotel_price or '' }}" placeholder="Hotel price"
+      readonly />
+    <input name="hotel_link" type="url" value="{{ day.hotel_link or '' }}" placeholder="Hotel link" readonly />
+    <input name="hotel_maps_link" type="url" value="{{ day.hotel_maps_link or '' }}" placeholder="Maps link" readonly />
+    <select name="hotel_cancelable" disabled>
+      <option value="" {% if day.hotel_cancelable is none %}selected{% endif %}>Unknown</option>
+      <option value="true" {% if day.hotel_cancelable %}selected{% endif %}>Yes</option>
+      <option value="false" {% if day.hotel_cancelable is not none and not day.hotel_cancelable %}selected{% endif %}>No
+      </option>
+    </select>
+    <input name="distance_km" type="number" step="0.1" value="{{ day.distance_km or '' }}" placeholder="Distance km"
+      readonly />
+    <input name="distance_hours" type="number" min="0" value="{{ day.distance_hours or '' }}" placeholder="Hours"
+      readonly />
+    <input name="distance_minutes" type="number" min="0" max="59" value="{{ day.distance_minutes or '' }}"
+      placeholder="Minutes" readonly />
+    <div class="action-icons">
+      <button type="submit" class="icon-button save inline-save" disabled aria-label="Save day">💾</button>
+      <button form="delete-day-{{ day.id }}" type="submit" class="icon-button danger"
+        aria-label="Delete day">🗑</button>
     </div>
-    <div class="ai-tabs">
-      <button type="button" class="ai-tab active" data-ai-mode="oneshot">Full trip</button>
-      <button type="button" class="ai-tab" data-ai-mode="chat">Chat</button>
-    </div>
-    <section id="ai-oneshot-panel" class="ai-section">
-      <div class="ai-section-head">
-        <div>
-          <p class="ai-section-title">Prompt toolkit</p>
-          <small>Copy the ready-made prompt or ask the assistant to generate everything.</small>
-        </div>
-        <div class="ai-head-actions">
-          <form method="post" action="{{ url_for('main.generate_trip_ai', trip_id=trip.id) }}" data-ai-generate="prompt">
-            <input type="hidden" name="generate_only" value="true" />
-            <button type="submit" class="ai-generate-btn secondary">
-              <span class="ai-btn-icon">📝</span>
-              <span>Generate prompt</span>
-            </button>
-          </form>
-          <form id="ai-generate-form" method="post" action="{{ url_for('main.generate_trip_ai', trip_id=trip.id) }}" data-ai-generate="apply">
-            <button type="submit" class="ai-generate-btn">
-              <span class="ai-btn-icon">⚙️</span>
-              <span>Generate & apply</span>
-            </button>
-          </form>
-          <small>Applying AI will replace current trip contents.</small>
-        </div>
-      </div>
-      <label for="ai-last-prompt">Latest prompt</label>
-      <textarea id="ai-last-prompt" rows="8" readonly>{{ ai_prompt_text }}</textarea>
-      <div class="action-icons" style="justify-content:flex-end;">
-        <button type="button" class="icon-button" data-copy-target="ai-last-prompt" aria-label="Copy prompt">📋</button>
-      </div>
-    </section>
-    <section id="ai-json-panel" class="ai-section">
-      <p class="ai-section-title">AI response JSON</p>
-      <p class="ai-warning">Applying an AI response will overwrite all manual edits.</p>
-      <form id="ai-response-form" method="post" action="{{ url_for('main.apply_ai_response', trip_id=trip.id) }}">
-        <label for="ai_response_text">Paste or review JSON</label>
-        <textarea id="ai_response_text" name="ai_response_text" rows="12" placeholder="Paste or edit JSON before applying.">{{ ai_response_text }}</textarea>
-        <div class="action-icons" style="justify-content:flex-end;">
-          <button type="submit" class="icon-button save" data-ai-apply aria-label="Apply AI response">💾 Apply</button>
+  </form>
+  <form id="delete-day-{{ day.id }}" method="post" action="{{ url_for('main.delete_day_page', day_id=day.id) }}"
+    onsubmit="return confirm('Delete this day and its activities?');"></form>
+
+  <div class="activities">
+    <h4>Activities</h4>
+    {% if day.activities %}
+    {% for activity in day.activities %}
+    <div class="inline-wrapper">
+      <form data-inline-form method="post" action="{{ url_for('main.update_activity_page', activity_id=activity.id) }}"
+        class="inline-form">
+        <input name="name" value="{{ activity.name }}" required readonly />
+        <input name="location" value="{{ activity.location or '' }}" placeholder="Location" readonly />
+        <textarea name="description" rows="2" readonly>{{ activity.description or '' }}</textarea>
+        <input name="price" type="number" step="0.01" value="{{ activity.price or '' }}" placeholder="Price" readonly />
+        <input name="reservation_id" value="{{ activity.reservation_id or '' }}" placeholder="Reservation" readonly />
+        <input name="link" type="url" value="{{ activity.link or '' }}" placeholder="Link" readonly />
+        <input name="maps_link" type="url" value="{{ activity.maps_link or '' }}" placeholder="Maps link" readonly />
+        <div class="action-icons">
+          {% if activity.maps_link %}
+          <a href="{{ activity.maps_link }}" target="_blank" rel="noreferrer" class="icon-button"
+            title="Open activity in Google Maps">🗺️</a>
+          {% endif %}
+          <button type="submit" class="icon-button save inline-save" disabled aria-label="Save activity">💾</button>
+          <button form="delete-activity-{{ activity.id }}" type="submit" class="icon-button danger"
+            aria-label="Delete activity">🗑</button>
         </div>
       </form>
-    </section>
-    <section id="ai-chat-panel" class="ai-section" hidden>
-      <div class="ai-section-head">
-        <div>
-          <p class="ai-section-title">Chat for incremental edits</p>
-          <small>Propose or apply tweaks without redoing the full trip.</small>
-        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p>No activities yet.</p>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('main.create_activity_page', day_id=day.id) }}">
+      <div class="inline-form">
+        <input name="name" placeholder="Activity name" required />
+        <input name="location" placeholder="Location" />
+        <textarea name="description" rows="2" placeholder="Description"></textarea>
+        <input name="price" type="number" step="0.01" placeholder="Price" />
+        <input name="reservation_id" placeholder="Reservation" />
+        <input name="link" type="url" placeholder="Link" />
+        <input name="maps_link" type="url" placeholder="Maps link" />
+        <button type="submit" class="icon-button" aria-label="Add activity">➕</button>
       </div>
-      <div id="ai-chat-log" class="ai-chat-log" aria-live="polite"></div>
-      <div id="ai-chat-actions" class="ai-chat-actions" hidden></div>
-      <form id="ai-chat-form" class="ai-chat-form">
-        <label for="ai-chat-input">Message</label>
-        <textarea id="ai-chat-input" rows="3" placeholder="Ask for hotel ideas, add activities, view trip, etc." required></textarea>
-        <div class="action-icons" style="justify-content:flex-end;">
-          <button type="submit" class="ai-generate-btn">
-            <span class="ai-btn-icon">💬</span>
-            <span>Send</span>
+    </form>
+  </div>
+</details>
+{% endfor %}
+{% else %}
+<p>No days added yet.</p>
+{% endif %}
+
+<details class="trip-panel collapsible">
+  <summary>Add a day</summary>
+  <form id="add-day-form" method="post" action="{{ url_for('main.create_day_page', trip_id=trip.id) }}">
+    <div class="inline-form">
+      <input name="date" type="date" placeholder="Date" />
+      <input name="hotel_name" placeholder="Hotel name" />
+      <input name="hotel_location" placeholder="Location" />
+      <textarea name="hotel_description" rows="2" placeholder="Description"></textarea>
+      <input name="hotel_reservation_id" placeholder="Reservation" />
+      <input name="hotel_price" type="number" step="0.01" placeholder="Hotel price" />
+      <input name="hotel_link" type="url" placeholder="Hotel link" />
+      <input name="hotel_maps_link" type="url" placeholder="Maps link" />
+      <select name="hotel_cancelable">
+        <option value="" selected>Unknown</option>
+        <option value="true">Yes</option>
+        <option value="false">No</option>
+      </select>
+      <input name="distance_km" type="number" step="0.1" placeholder="Distance km" />
+      <input name="distance_hours" type="number" min="0" placeholder="Hours" />
+      <input name="distance_minutes" type="number" min="0" max="59" placeholder="Minutes" />
+    </div>
+    <div class="action-icons" style="justify-content:flex-end;">
+      <button type="submit" class="icon-button add" aria-label="Add day">➕</button>
+    </div>
+  </form>
+</details>
+<div id="ai-sidebar-backdrop" class="ai-sidebar-backdrop" hidden></div>
+<aside id="ai-sidebar" class="ai-sidebar" hidden aria-hidden="true">
+  <div class="ai-sidebar-header">
+    <h3>AI assistant</h3>
+    <button type="button" class="icon-button" data-ai-close aria-label="Close AI assistant">✕</button>
+  </div>
+  <div class="ai-tabs">
+    <button type="button" class="ai-tab active" data-ai-mode="oneshot">Full trip</button>
+    <button type="button" class="ai-tab" data-ai-mode="chat">Chat</button>
+  </div>
+  <section id="ai-oneshot-panel" class="ai-section">
+    <div class="ai-section-head">
+      <div>
+        <p class="ai-section-title">Prompt toolkit</p>
+        <small>Copy the ready-made prompt or ask the assistant to generate everything.</small>
+      </div>
+      <div class="ai-head-actions">
+        <form method="post" action="{{ url_for('main.generate_trip_ai', trip_id=trip.id) }}" data-ai-generate="prompt">
+          <input type="hidden" name="generate_only" value="true" />
+          <button type="submit" class="ai-generate-btn secondary">
+            <span class="ai-btn-icon">📝</span>
+            <span>Generate prompt</span>
           </button>
-        </div>
-      </form>
-    </section>
-  </aside>
-  {% if show_ai_sidebar %}
-    <script>
-      window.__openAISidebar = true;
-    </script>
-  {% endif %}
+        </form>
+        <form id="ai-generate-form" method="post" action="{{ url_for('main.generate_trip_ai', trip_id=trip.id) }}"
+          data-ai-generate="apply">
+          <button type="submit" class="ai-generate-btn">
+            <span class="ai-btn-icon">⚙️</span>
+            <span>Generate Proposal</span>
+          </button>
+        </form>
+        <small>Applying AI will replace current trip contents.</small>
+      </div>
+    </div>
+    <label for="ai-last-prompt">Latest prompt</label>
+    <textarea id="ai-last-prompt" rows="8" readonly>{{ ai_prompt_text }}</textarea>
+
+    <!-- Streaming Console -->
+    <div id="ai-streaming-console" class="ai-console" hidden>
+      <p class="ai-section-title">Generation & Reasoning Log</p>
+      <pre id="ai-stream-output" class="ai-stream-output"
+        style="white-space: pre-wrap; word-wrap: break-word; max-height: 400px; overflow-y: auto; background: #2d2d2d; color: #e0e0e0; padding: 1rem; border-radius: 6px; font-size: 0.9rem;"></pre>
+    </div>
+
+    <div class="action-icons" style="justify-content:flex-end;">
+      <button type="button" class="icon-button" data-copy-target="ai-last-prompt" aria-label="Copy prompt">📋</button>
+    </div>
+  </section>
+
+  <!-- Custom Script for Streaming -->
   <script>
-    window.__TRIP_ID = {{ trip.id }};
+    document.addEventListener('DOMContentLoaded', () => {
+      const generateForm = document.querySelector('form[data-ai-generate="apply"]');
+      const consoleDiv = document.getElementById('ai-streaming-console');
+      const outputPre = document.getElementById('ai-stream-output');
+      const jsonTextarea = document.getElementById('ai_response_text');
+
+      if (generateForm) {
+        generateForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+
+          if (!confirm("Start AI generation? This might take a minute.")) return;
+
+          // UI Reset
+          consoleDiv.hidden = false;
+          outputPre.textContent = "Connecting to AI model...\n";
+          jsonTextarea.value = "";
+
+          const tripId = window.__TRIP_ID;
+
+          try {
+            const response = await fetch(`/api/trips/${tripId}/generate_stream`, {
+              method: 'POST'
+            });
+
+            if (!response.ok) {
+              outputPre.textContent += `Error: ${response.status} ${response.statusText}`;
+              return;
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let fullText = '';
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              buffer += decoder.decode(value, { stream: true });
+
+              // Process SSE lines
+              const lines = buffer.split('\n\n');
+              buffer = lines.pop(); // Keep incomplete line
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const dataStr = line.replace('data: ', '').trim();
+                  if (dataStr === '[DONE]') {
+                    outputPre.textContent += "\n[Generation Complete]";
+                    // Attempt to extract JSON from the full reasoning
+                    const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                      jsonTextarea.value = jsonMatch[0];
+                    } else {
+                      jsonTextarea.value = "// Could not auto-extract JSON. Please review the log above.";
+                    }
+                    return;
+                  }
+
+                  try {
+                    const data = JSON.parse(dataStr);
+                    if (data.error) {
+                      outputPre.textContent += `\n[Error]: ${data.error}`;
+                    } else if (data.chunk) {
+                      outputPre.textContent += data.chunk;
+                      fullText += data.chunk;
+                      // Auto-scroll
+                      outputPre.scrollTop = outputPre.scrollHeight;
+                    }
+                  } catch (err) {
+                    console.error('SSE Parse Error', err);
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            outputPre.textContent += `\nNetwork error: ${err}`;
+          }
+        });
+      }
+    });
   </script>
+  <section id="ai-json-panel" class="ai-section">
+    <p class="ai-section-title">AI response JSON</p>
+    <p class="ai-warning">Applying an AI response will overwrite all manual edits.</p>
+    <form id="ai-response-form" method="post" action="{{ url_for('main.apply_ai_response', trip_id=trip.id) }}">
+      <label for="ai_response_text">Paste or review JSON</label>
+      <textarea id="ai_response_text" name="ai_response_text" rows="12"
+        placeholder="Paste or edit JSON before applying.">{{ ai_response_text }}</textarea>
+      <div class="action-icons" style="justify-content:flex-end;">
+        <button type="submit" class="icon-button save" data-ai-apply aria-label="Apply AI response">💾 Apply</button>
+      </div>
+    </form>
+  </section>
+  <section id="ai-chat-panel" class="ai-section" hidden>
+    <div class="ai-section-head">
+      <div>
+        <p class="ai-section-title">Chat for incremental edits</p>
+        <small>Propose or apply tweaks without redoing the full trip.</small>
+      </div>
+    </div>
+    <div id="ai-chat-log" class="ai-chat-log" aria-live="polite"></div>
+    <div id="ai-chat-actions" class="ai-chat-actions" hidden></div>
+    <form id="ai-chat-form" class="ai-chat-form">
+      <label for="ai-chat-input">Message</label>
+      <textarea id="ai-chat-input" rows="3" placeholder="Ask for hotel ideas, add activities, view trip, etc."
+        required></textarea>
+      <div class="action-icons" style="justify-content:flex-end;">
+        <button type="submit" class="ai-generate-btn">
+          <span class="ai-btn-icon">💬</span>
+          <span>Send</span>
+        </button>
+      </div>
+    </form>
+  </section>
+</aside>
+{% if show_ai_sidebar %}
+<script>
+  window.__openAISidebar = true;
+</script>
+{% endif %}
+<script>
+  window.__TRIP_ID = {{ trip.id }};
+</script>
 {% endblock %}

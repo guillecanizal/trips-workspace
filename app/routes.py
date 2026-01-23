@@ -17,7 +17,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
 from .models import Activity, Day, GeneralItem, Trip
-from .services.ai import AIGenerationError, generate_itinerary, build_full_prompt_text
+from .services.ai import AIGenerationError, generate_itinerary, build_full_prompt_text, _extract_json_block, stream_itinerary_generation
 from .services.agent import run_simple_agent
 from .utils.maps import enrich_with_maps_links, build_itinerary_maps_url
 from . import dal
@@ -1119,6 +1119,42 @@ def generate_trip_ai(trip_id: int):
             "success",
         )
         return redirect(url_for("main.view_trip_page", trip_id=trip.id))
+    finally:
+        session.close()
+
+
+@bp.post("/api/trips/<int:trip_id>/generate_stream")
+def generate_trip_stream(trip_id: int):
+    session = get_session()
+    try:
+        trip = session.get(Trip, trip_id)
+        if not trip:
+            abort(404, "Trip not found")
+        
+        # Sort days to ensure order
+        days_list = sorted(trip.days, key=lambda d: (d.date or date.max))
+        trips_dates = [d.date for d in days_list if d.date]
+
+        def generate():
+            try:
+                # Use the new streaming generator
+                iterator = stream_itinerary_generation(
+                    trip_name=trip.name,
+                    description=trip.description,
+                    days=trips_dates
+                )
+                for chunk in iterator:
+                    # Send chunk as a JSON object in an SSE event
+                    payload = json.dumps({"chunk": chunk})
+                    yield f"data: {payload}\n\n"
+                
+                # Signal completion
+                yield "data: [DONE]\n\n"
+            except Exception as e:
+                err_payload = json.dumps({"error": str(e)})
+                yield f"data: {err_payload}\n\n"
+
+        return current_app.response_class(generate(), mimetype='text/event-stream')
     finally:
         session.close()
 

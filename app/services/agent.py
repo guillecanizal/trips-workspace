@@ -13,7 +13,7 @@ from langgraph.graph import END, StateGraph
 
 from app import dal
 
-MODEL_NAME = os.environ.get("OLLAMA_MODEL", "llama3.1:8b")
+MODEL_NAME = os.environ.get("OLLAMA_MODEL", "gemma2:9b")
 MODEL = ChatOllama(
     model=MODEL_NAME,
     temperature=0.1,

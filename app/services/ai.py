@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
@@ -108,8 +109,10 @@ def _build_messages(prompt: str) -> list[dict[str, str]]:
         ]
     )
     system_prompt = (
-        "You are a meticulous travel planner. Respond ONLY with compact JSON. "
-        "Use this schema: "
+        "You are a meticulous travel planner. "
+        "First, think step-by-step about the best itinerary in a few sentences (this is your reasoning). "
+        "Then, provide the final answer as a compact JSON object. "
+        "Use this schema for the JSON part: "
         + json.dumps(schema)
         + "\n"
         + rules
@@ -130,6 +133,25 @@ def build_full_prompt_text(trip_name: str, description: str | None, days: list[d
         + "\n\nUSER:\n"
         + messages[1]["content"]
     )
+
+
+def _extract_json_block(text: str) -> str:
+    """Extract a JSON object from the LLM response, removing code fences."""
+    if not text:
+        raise ValueError("empty_llm_response")
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.strip("`")
+        cleaned = cleaned.replace("json", "", 1).strip()
+    match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+    if match:
+        cleaned = match.group(0)
+    # Remove inline // comments that are invalid in JSON
+    cleaned = re.sub(r"//.*", "", cleaned)
+    # Fix potentially broken links from certain models
+    cleaned = re.sub(r'"link":\s*"https:[^"]*"', '"link": "https://"', cleaned)
+    cleaned = re.sub(r'"maps_link":\s*"https:[^"]*"', '"maps_link": "https://"', cleaned)
+    return cleaned
 
 
 def generate_itinerary(
@@ -157,7 +179,7 @@ def generate_itinerary(
         chat = client_factory()
     else:
         chat = ChatOllama(
-            model=model or os.environ.get("OLLAMA_MODEL", "llama3.1:8b"),
+            model=model or os.environ.get("OLLAMA_MODEL", "gemma2:9b"),
             temperature=0,
         )
 
@@ -170,6 +192,11 @@ def generate_itinerary(
     if not content:
         raise AIGenerationError("The LLM returned an empty response.")
 
+    try:
+        json_text = _extract_json_block(content)
+    except ValueError as exc:
+        raise AIGenerationError("LLM response did not contain JSON") from exc
+
     logs_path = _ensure_logs_dir(trip_id, logs_dir)
     timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
     prompt_file = logs_path / f"{timestamp}_prompt.txt"
@@ -181,9 +208,38 @@ def generate_itinerary(
     )
     prompt_file.write_text(prompt_content)
     response_file = logs_path / f"{timestamp}_response.json"
-    response_file.write_text(content)
+    response_file.write_text(json_text)
 
     try:
-        return json.loads(content), response_file
+        return json.loads(json_text), response_file
     except json.JSONDecodeError as exc:
         raise AIGenerationError("LLM response was not valid JSON") from exc
+
+
+def stream_itinerary_generation(
+    trip_name: str,
+    description: str | None,
+    days: list[date],  # dates
+):
+    """
+    Generator that yields chunks of text from the LLM.
+    Use this to stream the 'Reasoning' + 'JSON' to the frontend.
+    """
+    
+    user_prompt = build_trip_prompt(trip_name, description, days)
+    msgs_dicts = _build_messages(user_prompt)
+    
+    # Needs to construct langchain messages manually since _build_messages returns dicts
+    from langchain_core.messages import SystemMessage, HumanMessage
+    
+    messages = [
+        SystemMessage(content=msgs_dicts[0]["content"]),
+        HumanMessage(content=msgs_dicts[1]["content"])
+    ]
+    
+    model_name = os.environ.get("OLLAMA_MODEL", "gemma2:9b")
+    chat = ChatOllama(model=model_name, temperature=0.2)
+    
+    # Stream the tokens
+    for chunk in chat.stream(messages):
+        yield chunk.content
