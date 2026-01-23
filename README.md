@@ -36,20 +36,20 @@ The system follows a standard MVC-like pattern with Flask. It integrates with a 
 
 ```mermaid
 graph TD
-    User((User)) -->|Browser| Web[Flask Web App]
+    User(("User")) -->|Browser| Web["Flask Web App"]
     
     subgraph Backend ["Backend (app/)"]
-        Web -->|Routes| Routes[routes.py]
-        Routes -->|ORM| Models[models.py]
-        Routes -->|Helpers| DAL[dal.py]
-        Routes -->|Templates| Views[templates/]
-        Routes -->|Chat| Agent[agent.py]
-        Routes -->|Generate| AIGen[ai.py]
+        Web -->|Routes| Routes["routes.py"]
+        Routes -->|ORM| Models["models.py"]
+        Routes -->|Helpers| DAL["dal.py"]
+        Routes -->|Templates| Views["templates/"]
+        Routes -->|Chat| Agent["agent.py"]
+        Routes -->|Generate| AIGen["ai.py"]
     end
     
     subgraph External ["Data & External"]
-        Models <-->|SQLAlchemy| DB[(SQLite DB)]
-        Agent -->|LangGraph| Ollama[Ollama (Local LLM)]
+        Models <-->|SQLAlchemy| DB[("SQLite DB")]
+        Agent -->|LangGraph| Ollama["Ollama (Local LLM)"]
         AIGen -->|LangChain| Ollama
     end
 ```
