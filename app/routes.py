@@ -20,7 +20,9 @@ from .models import Activity, Day, GeneralItem, Trip
 from .services.ai import AIGenerationError, generate_itinerary, build_full_prompt_text, _extract_json_block, stream_itinerary_generation
 from .services.agent import run_simple_agent
 from .utils.maps import enrich_with_maps_links, build_itinerary_maps_url
+from .utils.csv_export import generate_trip_csv
 from . import dal
+
 
 
 bp = Blueprint("main", __name__)
@@ -990,7 +992,49 @@ def export_trip_pdf(trip_id: int):
         session.close()
 
 
+@bp.get("/trips/<int:trip_id>/export.csv")
+def export_trip_csv(trip_id: int):
+    """Export trip data as CSV file."""
+    session = get_session()
+    try:
+        trip = session.get(Trip, trip_id)
+        if not trip:
+            abort(404, "Trip not found")
+        
+        ordered_days = sorted(
+            trip.days,
+            key=lambda d: (d.date or date.max, d.id),
+        )
+        general_items = sorted(
+            trip.general_items,
+            key=lambda item: ((item.name or "").lower(), item.id),
+        )
+        stats = calculate_trip_stats(ordered_days, general_items)
+        
+        # Generate CSV content
+        csv_content = generate_trip_csv(trip, ordered_days, general_items, stats)
+        
+        # Prepare file for download
+        buffer = BytesIO(csv_content.encode('utf-8-sig'))  # UTF-8 with BOM for Excel compatibility
+        
+        base_name = (trip.name or "trip").strip().lower()
+        base_name = re.sub(r"[^a-z0-9]+", "-", base_name) or "trip"
+        filename = f"{base_name}-export.csv"
+        
+        return send_file(
+            buffer,
+            mimetype="text/csv",
+            as_attachment=True,
+            download_name=filename,
+        )
+    finally:
+        session.close()
+
+
+
+
 @bp.post("/agent")
+
 def agent_chat():
     payload = request.get_json(silent=True) or {}
     trip_id = payload.get("trip_id")
