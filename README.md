@@ -12,7 +12,7 @@ The application provides a comprehensive solution for trip planning:
 - **General Items**: Keep track of non-daily items like flights, car rentals, or travel insurance.
 - **AI Itinerary Generation**: Automatically generate a complete, detailed itinerary for a trip based on its name and dates. The AI suggests hotels, activities, and travel details.
 - **Interactive AI Agent**: Chat with an AI agent to get suggestions for hotels or activities for a specific day.
-- **PDF Export**: Export a full trip itinerary into a clean, readable PDF document.
+- **Export Options**: Export trip itineraries to PDF or CSV format for offline use, printing, or importing into spreadsheet applications.
 - **Google Maps Integration**: Automatically enriches locations with Google Maps links for easy navigation.
 
 ### ⚡️ Streaming AI Generation ("Generate Proposal")
@@ -85,7 +85,7 @@ The application can be configured using environment variables.
 | :--- | :--- | :--- |
 | `DATABASE_URL` | `sqlite:///instance/trip_planner.db` | Connection string for the database (SQLAlchemy format). |
 | `SECRET_KEY` | `dev-secret-key` | Secret key for Flask session security. Change this in production. |
-| `OLLAMA_MODEL` | `gemma2:9b` | The name of the local Ollama model to use for AI features. |
+| `OLLAMA_MODEL` | `gemma2:9b` | The Ollama model for AI features. **Recommended models**: `qwen2.5:14b` (best quality, requires 16GB+ RAM), `gemma2:9b` (balanced, good default), `llama3.1:8b` (fastest). |
 
 ## Code Structure
 
@@ -106,7 +106,10 @@ The application can be configured using environment variables.
 │   │   ├── agent.py       # Interactive AI agent (LangGraph)
 │   │   └── ai.py          # Itinerary generator (LangChain)
 │   ├── templates/         # Jinja2 HTML templates
-│   └── utils/             # Utilities (e.g., Google Maps links)
+│   └── utils/             # Utility modules
+│       ├── csv_export.py  # CSV export generation
+│       ├── pdf_export.py  # PDF export generation
+│       └── maps.py        # Google Maps link enrichment
 ├── instance/              # Instance-specific data (SQLite db)
 └── logs/                  # Logs for AI interactions
 ```
