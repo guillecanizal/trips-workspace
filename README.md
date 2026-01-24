@@ -131,19 +131,6 @@ The database uses SQLite by default with SQLAlchemy ORM.
     - Has `name`, `description`, `price`, `reservation_id`.
     - Relationships: `trip` (Many-to-One).
 
-## Context for Agents
+## Special Instruction for AI Agents
 
-*This section is designed to help AI agents understand the codebase quickly.*
-
-- **Stack**: Python 3.10+, Flask, SQLAlchemy, Jinja2, LangChain, LangGraph.
-- **Code Logic**:
-    - **Controllers**: `app/routes.py` contains all endpoint logic. It uses a request-scoped database session (`get_session()`).
-    - **Models**: `app/models.py` uses modern SQLAlchemy `Mapped[...]` type hints.
-    - **Templates**: Standard Jinja2 templates in `app/templates/` (server-side rendering).
-- **AI Integration**:
-    - **`app/services/ai.py`**: Uses `langchain-ollama` to generate full itineraries. It constructs large system prompts with JSON definitions and supports real-time streaming via Server-Sent Events (SSE).
-    - **`app/services/agent.py`**: Uses a `LangGraph` StateGraph to build a conversational agent that detects intent (activities vs. hotels) and calls tools.
-- **Convention**:
-    - Use `from __future__ import annotations` in all files.
-    - Type hints are mandatory.
-    - The `dal.py` module is a minimal abstraction layer specifically for the Agent to access trip data without circular imports.
+If you are an AI assistant (Claude, Cursor, etc.) working on this project, please refer to [AGENTS.md](./AGENTS.md) for critical technical context, coding guidelines, and the strict offline-first privacy policy.
