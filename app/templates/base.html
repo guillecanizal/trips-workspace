@@ -241,12 +241,13 @@
       }
       .ai-chat-log {
         min-height: 150px;
-        max-height: 280px;
+        max-height: 420px;
         overflow-y: auto;
+        scroll-behavior: smooth;
         display: flex;
         flex-direction: column;
-        gap: 0.6rem;
-        padding: 0.6rem;
+        gap: 0.5rem;
+        padding: 0.75rem;
         background: #0b0b0b;
         border: 1px solid rgba(248, 250, 252, 0.08);
         border-radius: 0.5rem;
@@ -256,12 +257,29 @@
         flex-direction: column;
         gap: 0.2rem;
         font-size: 0.9rem;
+        max-width: 85%;
+        padding: 0.55rem 0.75rem;
+        border-radius: 0.75rem;
+        line-height: 1.4;
       }
       .ai-chat-entry.user {
-        color: #60a5fa;
+        align-self: flex-end;
+        background: #1e3a5f;
+        color: #e2e8f0;
+        border-bottom-right-radius: 0.2rem;
       }
       .ai-chat-entry.assistant {
+        align-self: flex-start;
+        background: #1a1a2e;
         color: #e2e8f0;
+        border-bottom-left-radius: 0.2rem;
+      }
+      .ai-chat-entry strong {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        opacity: 0.6;
+        margin-bottom: 0.15rem;
       }
       .ai-chat-entry pre {
         background: #090909;
@@ -269,19 +287,52 @@
         padding: 0.4rem;
         overflow-x: auto;
       }
+      .ai-typing-indicator {
+        align-self: flex-start;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        background: #1a1a2e;
+        border-radius: 0.75rem;
+        border-bottom-left-radius: 0.2rem;
+        font-size: 0.85rem;
+        color: #94a3b8;
+      }
+      .ai-typing-dots {
+        display: inline-flex;
+        gap: 3px;
+      }
+      .ai-typing-dots span {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #60a5fa;
+        animation: ai-bounce 1.2s infinite ease-in-out;
+      }
+      .ai-typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+      .ai-typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+      @keyframes ai-bounce {
+        0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+        30% { transform: translateY(-5px); opacity: 1; }
+      }
       .ai-chat-actions {
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
       }
       .ai-chat-action-card {
-        border: 1px solid rgba(248, 250, 252, 0.15);
+        border: 1px solid rgba(248, 250, 252, 0.12);
         border-radius: 0.5rem;
         padding: 0.6rem;
-        background: #111;
+        background: linear-gradient(135deg, #111118, #151520);
         display: flex;
         flex-direction: column;
         gap: 0.3rem;
+        transition: border-color 0.15s ease;
+      }
+      .ai-chat-action-card:hover {
+        border-color: #3b82f6;
       }
       .ai-chat-form textarea {
         background: #0b0b0b;
@@ -289,6 +340,12 @@
         border: 1px solid rgba(248, 250, 252, 0.15);
         border-radius: 0.45rem;
         padding: 0.5rem;
+        resize: none;
+        transition: border-color 0.15s ease;
+      }
+      .ai-chat-form textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
       }
       body.ai-sidebar-open {
         overflow: hidden;
@@ -650,15 +707,103 @@
           }
         }
 
+        let activeAbortController = null;
+
         const setChatLoading = (loading) => {
           if (chatSubmitButton) {
-            chatSubmitButton.disabled = loading;
-            chatSubmitButton.innerHTML = loading
-              ? '<span class="ai-btn-icon">⏳</span><span>Waiting...</span>'
-              : (defaultChatButtonContent || '<span class="ai-btn-icon">💬</span><span>Send</span>');
+            if (loading) {
+              chatSubmitButton.disabled = false;
+              chatSubmitButton.innerHTML = '<span class="ai-btn-icon">✕</span><span>Cancel</span>';
+              chatSubmitButton.onclick = (e) => {
+                e.preventDefault();
+                if (activeAbortController) activeAbortController.abort();
+              };
+            } else {
+              chatSubmitButton.disabled = false;
+              chatSubmitButton.innerHTML = defaultChatButtonContent || '<span class="ai-btn-icon">💬</span><span>Send</span>';
+              chatSubmitButton.onclick = null;
+            }
           }
           if (chatInput) {
             chatInput.disabled = loading;
+          }
+        };
+
+        const showTypingIndicator = (statusText) => {
+          hideTypingIndicator();
+          if (!chatLog) return;
+          const el = document.createElement('div');
+          el.className = 'ai-typing-indicator';
+          el.id = 'ai-typing-el';
+          el.innerHTML = '<span class="ai-typing-dots"><span></span><span></span><span></span></span>';
+          const text = document.createElement('span');
+          text.className = 'ai-typing-text';
+          text.textContent = statusText || 'Pensando...';
+          el.appendChild(text);
+          chatLog.appendChild(el);
+          chatLog.scrollTop = chatLog.scrollHeight;
+        };
+
+        const updateTypingText = (statusText) => {
+          const el = document.getElementById('ai-typing-el');
+          if (el) {
+            const text = el.querySelector('.ai-typing-text');
+            if (text) text.textContent = statusText;
+          }
+        };
+
+        const hideTypingIndicator = () => {
+          const el = document.getElementById('ai-typing-el');
+          if (el) el.remove();
+        };
+
+        const callAgentStream = async (message, callbacks) => {
+          const controller = new AbortController();
+          activeAbortController = controller;
+          try {
+            const response = await fetch('/agent/stream', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ trip_id: TRIP_ID, message }),
+              signal: controller.signal,
+            });
+            if (!response.ok) {
+              const data = await response.json().catch(() => null);
+              throw new Error(data?.error || 'Agent request failed');
+            }
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              buffer += decoder.decode(value, { stream: true });
+              const parts = buffer.split('\n\n');
+              buffer = parts.pop();
+              for (const part of parts) {
+                if (!part.startsWith('data: ')) continue;
+                const dataStr = part.slice(6).trim();
+                if (dataStr === '[DONE]') {
+                  if (callbacks.onDone) callbacks.onDone();
+                  return;
+                }
+                try {
+                  const evt = JSON.parse(dataStr);
+                  if (evt.type === 'status' && callbacks.onStatus) callbacks.onStatus(evt.message);
+                  else if (evt.type === 'result' && callbacks.onResult) callbacks.onResult(evt.data);
+                  else if (evt.type === 'error' && callbacks.onError) callbacks.onError(evt.message);
+                } catch (e) { /* ignore parse errors */ }
+              }
+            }
+            if (callbacks.onDone) callbacks.onDone();
+          } catch (err) {
+            if (err.name === 'AbortError') {
+              if (callbacks.onError) callbacks.onError('Request cancelled');
+            } else {
+              if (callbacks.onError) callbacks.onError(err.message || 'Agent error');
+            }
+          } finally {
+            activeAbortController = null;
           }
         };
 
@@ -687,6 +832,8 @@
 
         const describeResult = (result) => {
           if (!result) return 'Sin resultados';
+          if (result.task === 'estimate_budget') return `Presupuesto: ${result.trip_name || 'viaje'}`;
+          if (result.task === 'summarize_trip') return `Resumen: ${result.trip_name || 'viaje'}`;
           const action = result.task === 'propose_hotels' ? 'Hoteles recomendados' : 'Actividades sugeridas';
           const day = result.day ? ` para el día ${result.day}` : '';
           const location = result.location ? ` en ${result.location}` : '';
@@ -779,6 +926,72 @@
           return container;
         };
 
+        const buildBudgetElement = (result) => {
+          const container = document.createElement('div');
+          const card = document.createElement('div');
+          card.className = 'ai-chat-action-card';
+
+          const title = document.createElement('strong');
+          title.textContent = `Presupuesto: ${result.trip_name || 'Viaje'}`;
+          card.appendChild(title);
+
+          const totals = result.totals || {};
+          const lines = [
+            `Hoteles: ${totals.hotels?.toFixed(2) || '0.00'}`,
+            `Actividades: ${totals.activities?.toFixed(2) || '0.00'}`,
+            `General: ${totals.general_items?.toFixed(2) || '0.00'}`,
+          ];
+          lines.forEach(line => {
+            const s = document.createElement('small');
+            s.textContent = line;
+            card.appendChild(s);
+          });
+
+          const total = document.createElement('strong');
+          total.style.marginTop = '0.5rem';
+          total.textContent = `Total: ${totals.grand_total?.toFixed(2) || '0.00'}`;
+          card.appendChild(total);
+
+          if (result.days && result.days.length) {
+            const details = document.createElement('details');
+            details.style.marginTop = '0.5rem';
+            const summary = document.createElement('summary');
+            summary.textContent = 'Desglose por día';
+            summary.style.cursor = 'pointer';
+            details.appendChild(summary);
+            const list = document.createElement('div');
+            list.style.display = 'flex';
+            list.style.flexDirection = 'column';
+            list.style.gap = '0.25rem';
+            list.style.marginTop = '0.25rem';
+            result.days.forEach(d => {
+              if (d.day_total > 0) {
+                const row = document.createElement('small');
+                row.textContent = `${d.date || '?'}: ${d.day_total.toFixed(2)} (hotel: ${d.hotel_cost.toFixed(2)}, actividades: ${d.activities_cost.toFixed(2)})`;
+                list.appendChild(row);
+              }
+            });
+            details.appendChild(list);
+            card.appendChild(details);
+          }
+
+          container.appendChild(card);
+          return container;
+        };
+
+        const buildSummaryElement = (result) => {
+          const container = document.createElement('div');
+          const card = document.createElement('div');
+          card.className = 'ai-chat-action-card';
+          const text = document.createElement('p');
+          text.style.whiteSpace = 'pre-wrap';
+          text.style.margin = '0';
+          text.textContent = result.summary || 'Sin resumen disponible.';
+          card.appendChild(text);
+          container.appendChild(card);
+          return container;
+        };
+
         const buildHotelPayload = (candidate, fallbackLocation) => {
           const description = candidate.description || candidate.details || candidate.summary || candidate.notes || '';
           return {
@@ -815,19 +1028,7 @@
           }
         };
 
-        const callAgent = async (message) => {
-          const response = await fetch('/agent', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ trip_id: TRIP_ID, message }),
-          });
-          const data = await parseJson(response);
-          if (!response.ok) {
-            const err = data?.error || 'Agent request failed';
-            throw new Error(err);
-          }
-          return data || {};
-        };
+        /* callAgent kept as fallback — not used by the submit handler anymore */
 
         const applyHotelCandidate = async (result, candidate, button) => {
           if (!result?.day) {
@@ -907,19 +1108,42 @@
             appendChat('user', message);
             chatInput.value = '';
             setChatLoading(true);
-            try {
-              const data = await callAgent(message);
-              const result = data.result || null;
-              if (result) {
+            showTypingIndicator('Pensando...');
+            await callAgentStream(message, {
+              onStatus: (msg) => updateTypingText(msg),
+              onResult: (result) => {
+                hideTypingIndicator();
                 appendChat('assistant', describeResult(result));
-                appendChat('assistant', '', { render: () => buildRecommendationElement(result) });
-              } else {
-                appendChat('assistant', 'El agente no devolvió resultados.');
-              }
-            } catch (error) {
-              appendChat('assistant', error.message || 'Agent error');
+                if (result.task === 'estimate_budget') {
+                  appendChat('assistant', '', { render: () => buildBudgetElement(result) });
+                } else if (result.task === 'summarize_trip') {
+                  appendChat('assistant', '', { render: () => buildSummaryElement(result) });
+                } else {
+                  appendChat('assistant', '', { render: () => buildRecommendationElement(result) });
+                }
+              },
+              onError: (msg) => {
+                hideTypingIndicator();
+                appendChat('assistant', msg || 'Agent error');
+              },
+              onDone: () => {
+                hideTypingIndicator();
+                setChatLoading(false);
+              },
+            });
+            setChatLoading(false);
+          });
+        }
+
+        const clearBtn = document.getElementById('ai-chat-clear');
+        if (clearBtn) {
+          clearBtn.addEventListener('click', async () => {
+            clearBtn.disabled = true;
+            try {
+              await fetch(`/agent/history/${TRIP_ID}`, { method: 'DELETE' });
+              if (chatLog) chatLog.innerHTML = '';
             } finally {
-              setChatLoading(false);
+              clearBtn.disabled = false;
             }
           });
         }

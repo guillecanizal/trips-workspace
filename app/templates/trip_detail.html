@@ -281,6 +281,37 @@
     <div class="action-icons" style="justify-content:flex-end;">
       <button type="button" class="icon-button" data-copy-target="ai-last-prompt" aria-label="Copy prompt">📋</button>
     </div>
+
+    <!-- Apply external JSON -->
+    <details id="ai-paste-json-toggle" style="margin-top:1rem;">
+      <summary style="cursor:pointer;font-size:0.9rem;font-weight:600;">📥 Apply external JSON</summary>
+      <div style="margin-top:0.75rem;">
+        <small style="opacity:0.75;">Paste a JSON response from an external LLM (ChatGPT, Claude…) and apply it
+          directly.</small>
+        <textarea id="ai-paste-json-input" rows="10"
+          style="width:100%;margin-top:0.5rem;font-size:0.8rem;font-family:monospace;background:#2d2d2d;color:#e0e0e0;border-radius:6px;padding:0.5rem;box-sizing:border-box;"
+          placeholder='Paste JSON here, e.g. {"days": [...], "general_items": [...]}'></textarea>
+        <div id="ai-paste-json-error" style="color:#f87171;font-size:0.8rem;margin-top:0.25rem;display:none;"></div>
+        <div id="ai-paste-preview" hidden style="margin-top:0.5rem;"></div>
+        <div
+          style="display:flex;align-items:center;justify-content:flex-end;gap:0.5rem;margin-top:0.6rem;flex-wrap:wrap;">
+          <button type="button" id="ai-paste-preview-btn" class="ai-generate-btn secondary"
+            style="font-size:0.82rem;padding:0.3rem 0.75rem;margin:0;">
+            <span style="font-size:0.9rem;">🔍</span>
+            <span>Preview</span>
+          </button>
+          <form id="ai-paste-apply-form" method="post" action="{{ url_for('main.apply_ai_response', trip_id=trip.id) }}"
+            style="margin:0;padding:0;background:none;border:none;box-shadow:none;">
+            <input type="hidden" id="ai-paste-json-hidden" name="ai_response_text" value="" />
+            <button type="submit" id="ai-paste-apply-btn" class="ai-generate-btn" hidden
+              style="font-size:0.82rem;padding:0.3rem 0.75rem;margin:0;">
+              <span style="font-size:0.9rem;">✅</span>
+              <span>Apply itinerary</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </details>
   </section>
 
   <!-- Custom Script for Streaming -->
@@ -290,6 +321,58 @@
       const consoleDiv = document.getElementById('ai-streaming-console');
       const outputPre = document.getElementById('ai-stream-output');
       const jsonTextarea = document.getElementById('ai_response_text');
+      const jsonDisplay = document.getElementById('ai_response_text_display');
+      const previewDiv = document.getElementById('ai-preview');
+      const applyBar = document.getElementById('ai-apply-bar');
+
+      const buildItineraryPreview = (jsonStr) => {
+        try {
+          const data = JSON.parse(jsonStr);
+          const days = data.days || [];
+          const general = data.general_items || [];
+          if (!days.length) return null;
+
+          const container = document.createElement('div');
+
+          const header = document.createElement('div');
+          header.className = 'ai-chat-action-card';
+          const title = document.createElement('strong');
+          const totalActivities = days.reduce((sum, d) => sum + (d.activities || []).length, 0);
+          title.textContent = `${days.length} days, ${totalActivities} activities`;
+          if (general.length) title.textContent += `, ${general.length} general items`;
+          header.appendChild(title);
+          container.appendChild(header);
+
+          days.forEach(day => {
+            const card = document.createElement('div');
+            card.className = 'ai-chat-action-card';
+            card.style.marginTop = '0.25rem';
+
+            const dateEl = document.createElement('strong');
+            dateEl.textContent = day.date || '?';
+            card.appendChild(dateEl);
+
+            const hotel = day.hotel;
+            if (hotel && hotel.name) {
+              const h = document.createElement('small');
+              h.textContent = `Hotel: ${hotel.name}${hotel.location ? ' (' + hotel.location + ')' : ''}`;
+              card.appendChild(h);
+            }
+
+            (day.activities || []).forEach(act => {
+              const a = document.createElement('small');
+              a.textContent = `- ${act.name || '?'}${act.location ? ' (' + act.location + ')' : ''}`;
+              card.appendChild(a);
+            });
+
+            container.appendChild(card);
+          });
+
+          return container;
+        } catch (e) {
+          return null;
+        }
+      };
 
       if (generateForm) {
         generateForm.addEventListener('submit', async (e) => {
@@ -297,10 +380,12 @@
 
           if (!confirm("Start AI generation? This might take a minute.")) return;
 
-          // UI Reset
           consoleDiv.hidden = false;
           outputPre.textContent = "Connecting to AI model...\n";
           jsonTextarea.value = "";
+          if (jsonDisplay) jsonDisplay.value = "";
+          if (previewDiv) { previewDiv.innerHTML = ''; previewDiv.hidden = true; }
+          if (applyBar) applyBar.hidden = true;
 
           const tripId = window.__TRIP_ID;
 
@@ -325,21 +410,29 @@
 
               buffer += decoder.decode(value, { stream: true });
 
-              // Process SSE lines
               const lines = buffer.split('\n\n');
-              buffer = lines.pop(); // Keep incomplete line
+              buffer = lines.pop();
 
               for (const line of lines) {
                 if (line.startsWith('data: ')) {
                   const dataStr = line.replace('data: ', '').trim();
                   if (dataStr === '[DONE]') {
                     outputPre.textContent += "\n[Generation Complete]";
-                    // Attempt to extract JSON from the full reasoning
                     const jsonMatch = fullText.match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
-                      jsonTextarea.value = jsonMatch[0];
+                      const extracted = jsonMatch[0];
+                      jsonTextarea.value = extracted;
+                      if (jsonDisplay) jsonDisplay.value = extracted;
+                      const preview = buildItineraryPreview(extracted);
+                      if (preview && previewDiv) {
+                        previewDiv.innerHTML = '';
+                        previewDiv.appendChild(preview);
+                        previewDiv.hidden = false;
+                      }
+                      if (applyBar) applyBar.hidden = false;
                     } else {
-                      jsonTextarea.value = "// Could not auto-extract JSON. Please review the log above.";
+                      jsonTextarea.value = "";
+                      if (jsonDisplay) jsonDisplay.value = "Could not extract JSON. Check the generation log.";
                     }
                     return;
                   }
@@ -351,7 +444,6 @@
                     } else if (data.chunk) {
                       outputPre.textContent += data.chunk;
                       fullText += data.chunk;
-                      // Auto-scroll
                       outputPre.scrollTop = outputPre.scrollHeight;
                     }
                   } catch (err) {
@@ -365,19 +457,68 @@
           }
         });
       }
+
+      // --- External JSON paste ---
+      const pasteInput = document.getElementById('ai-paste-json-input');
+      const pastePreviewBtn = document.getElementById('ai-paste-preview-btn');
+      const pasteApplyBtn = document.getElementById('ai-paste-apply-btn');
+      const pasteApplyForm = document.getElementById('ai-paste-apply-form');
+      const pasteHidden = document.getElementById('ai-paste-json-hidden');
+      const pastePreviewDiv = document.getElementById('ai-paste-preview');
+      const pasteError = document.getElementById('ai-paste-json-error');
+
+      if (pastePreviewBtn) {
+        pastePreviewBtn.addEventListener('click', () => {
+          const raw = pasteInput.value.trim();
+          pasteError.style.display = 'none';
+          pastePreviewDiv.hidden = true;
+          pasteApplyBtn.hidden = true;
+          pasteHidden.value = '';
+
+          if (!raw) {
+            pasteError.textContent = 'Please paste a JSON first.';
+            pasteError.style.display = 'block';
+            return;
+          }
+
+          const preview = buildItineraryPreview(raw);
+          if (!preview) {
+            pasteError.textContent = 'Invalid JSON or unrecognised format. Expected {"days": [...], ...}';
+            pasteError.style.display = 'block';
+            return;
+          }
+
+          pastePreviewDiv.innerHTML = '';
+          pastePreviewDiv.appendChild(preview);
+          pastePreviewDiv.hidden = false;
+          pasteHidden.value = raw;
+          pasteApplyBtn.hidden = false;
+        });
+      }
+
+      if (pasteApplyForm) {
+        pasteApplyForm.addEventListener('submit', (e) => {
+          if (!confirm('Apply this external JSON? This will replace the current trip contents.')) {
+            e.preventDefault();
+          }
+        });
+      }
     });
   </script>
   <section id="ai-json-panel" class="ai-section">
-    <p class="ai-section-title">AI response JSON</p>
-    <p class="ai-warning">Applying an AI response will overwrite all manual edits.</p>
+    <div id="ai-preview" hidden></div>
     <form id="ai-response-form" method="post" action="{{ url_for('main.apply_ai_response', trip_id=trip.id) }}">
-      <label for="ai_response_text">Paste or review JSON</label>
-      <textarea id="ai_response_text" name="ai_response_text" rows="12"
-        placeholder="Paste or edit JSON before applying.">{{ ai_response_text }}</textarea>
-      <div class="action-icons" style="justify-content:flex-end;">
-        <button type="submit" class="icon-button save" data-ai-apply aria-label="Apply AI response">💾 Apply</button>
+      <textarea id="ai_response_text" name="ai_response_text" hidden>{{ ai_response_text }}</textarea>
+      <div id="ai-apply-bar" class="action-icons" style="justify-content:flex-end;" hidden>
+        <button type="submit" class="ai-generate-btn">Apply itinerary</button>
       </div>
     </form>
+    <details id="ai-json-toggle" style="margin-top:0.5rem;">
+      <summary style="cursor:pointer;font-size:0.8rem;opacity:0.7;">Show raw JSON</summary>
+      <textarea id="ai_response_text_display" rows="12" readonly
+        style="width:100%;margin-top:0.5rem;font-size:0.8rem;font-family:monospace;background:#2d2d2d;color:#e0e0e0;border-radius:6px;padding:0.5rem;"
+        placeholder="JSON will appear here after generation.">{{ ai_response_text }}</textarea>
+    </details>
   </section>
   <section id="ai-chat-panel" class="ai-section" hidden>
     <div class="ai-section-head">
@@ -385,12 +526,15 @@
         <p class="ai-section-title">Chat for incremental edits</p>
         <small>Propose or apply tweaks without redoing the full trip.</small>
       </div>
+      <button id="ai-chat-clear" class="ai-generate-btn" style="font-size:0.75rem;padding:0.3rem 0.7rem;"
+        title="Clear conversation history">
+        New chat
+      </button>
     </div>
     <div id="ai-chat-log" class="ai-chat-log" aria-live="polite"></div>
     <div id="ai-chat-actions" class="ai-chat-actions" hidden></div>
     <form id="ai-chat-form" class="ai-chat-form">
-      <label for="ai-chat-input">Message</label>
-      <textarea id="ai-chat-input" rows="3" placeholder="Ask for hotel ideas, add activities, view trip, etc."
+      <textarea id="ai-chat-input" rows="2" placeholder="Ask for hotel ideas, add activities, view trip, etc."
         required></textarea>
       <div class="action-icons" style="justify-content:flex-end;">
         <button type="submit" class="ai-generate-btn">

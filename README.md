@@ -11,14 +11,25 @@ The application provides a comprehensive solution for trip planning:
 - **Activity Planning**: Add multiple activities to any day, including details like location, price, and reservation information.
 - **General Items**: Keep track of non-daily items like flights, car rentals, or travel insurance.
 - **AI Itinerary Generation**: Automatically generate a complete, detailed itinerary for a trip based on its name and dates. The AI suggests hotels, activities, and travel details.
-- **Interactive AI Agent**: Chat with an AI agent to get suggestions for hotels or activities for a specific day.
+- **External JSON Apply**: Already have an itinerary JSON from an external LLM (ChatGPT, Claude…)? Paste it directly in the "Full trip" panel, preview it, and apply it with one click — no need to re-generate locally.
+- **Interactive AI Agent**: Chat with an AI agent to get suggestions, add activities or hotels, review your budget, or get a narrative summary of any day. Conversation history is preserved per trip across page reloads.
 - **Export Options**: Export trip itineraries to PDF or CSV format for offline use, printing, or importing into spreadsheet applications.
 - **Google Maps Integration**: Automatically enriches locations with Google Maps links for easy navigation.
 
 ### ⚡️ Streaming AI Generation ("Generate Proposal")
 - **Real-time Reasoning**: The AI "thinks" out loud, showing its reasoning process in a streaming console before producing the final JSON.
-- **Interactive Proposal**: The "Generate Proposal" button creates a draft. You review the JSON output and, if satisfied, click "Apply" to save it to your trip.
+- **Itinerary Preview**: After generation, a summary card view shows days and activities before you commit to applying.
+- **Interactive Proposal**: Click "Apply itinerary" to save the proposal to your trip, or expand "Show raw JSON" to inspect the full output.
+- **External JSON**: Alternatively, use the "📥 Apply external JSON" section to paste a JSON from any external LLM and apply it directly.
 - **LangChain & Server-Sent Events**: Uses modern streaming standards to provide a responsive user experience without long loading times.
+
+### 💬 AI Chat (Incremental Edits)
+- **Streaming responses**: The chat assistant uses SSE streaming with an animated typing indicator, so you see answers as they arrive.
+- **Cancel mid-stream**: A "Cancel" button replaces "Send" during generation so you can stop a long response instantly.
+- **Persistent conversation history**: Each trip keeps its own conversation thread using LangGraph's `MemorySaver`. Use "New chat" to reset.
+- **Budget estimation**: Ask things like *"¿Cuánto cuesta este viaje?"* and the agent summarises total hotel, activity, and general item costs.
+- **Trip narrative**: Ask for a *"resumen"* and the agent produces a prose itinerary overview of all days.
+- **Structured candidates**: Hotel and activity proposals are generated via Pydantic-validated structured output for reliable formatting.
 
 ## Privacy & Local-First
 

@@ -16,7 +16,7 @@ pip install -r requirements.txt
 python run.py
 
 # Pull the default AI model (requires Ollama installed)
-ollama pull gemma2:9b
+ollama pull qwen2.5:7b
 ```
 
 ```bash
@@ -32,7 +32,7 @@ mypy app/
 |----------|---------|-------------|
 | `DATABASE_URL` | `sqlite:///instance/trip_planner.db` | SQLAlchemy connection string |
 | `SECRET_KEY` | `dev-secret-key` | Flask session key |
-| `OLLAMA_MODEL` | `gemma2:9b` | Ollama model name |
+| `OLLAMA_MODEL` | `qwen2.5:7b` | Ollama model name |
 
 ## Architecture
 

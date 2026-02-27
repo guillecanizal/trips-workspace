@@ -7,7 +7,7 @@ from typing import Any, Dict
 
 from flask import current_app
 
-from .models import Activity, Day, Trip
+from .models import Activity, Day, GeneralItem, Trip
 
 
 def _get_session():
@@ -122,5 +122,57 @@ def apply_activity(trip_id: int, day: str, activity: Dict[str, Any]) -> Dict[str
         session.commit()
         session.refresh(target_day)
         return _serialize_day(target_day)
+    finally:
+        session.close()
+
+
+def get_trip_cost_summary(trip_id: int) -> Dict[str, Any]:
+    """Aggregate prices across hotels, activities and general items."""
+    session = _get_session()
+    try:
+        trip = session.get(Trip, trip_id)
+        if not trip:
+            raise ValueError("trip_not_found")
+        ordered_days = sorted(
+            trip.days,
+            key=lambda d: (d.date or date.max, d.id),
+        )
+        days_breakdown: list[Dict[str, Any]] = []
+        total_hotels = 0.0
+        total_activities = 0.0
+        for day in ordered_days:
+            hotel_cost = day.hotel_price or 0.0
+            act_cost = sum(a.price or 0.0 for a in day.activities)
+            total_hotels += hotel_cost
+            total_activities += act_cost
+            days_breakdown.append({
+                "date": day.date.isoformat() if day.date else None,
+                "hotel": day.hotel_name,
+                "hotel_cost": hotel_cost,
+                "activities_cost": act_cost,
+                "day_total": hotel_cost + act_cost,
+            })
+        general_items = (
+            session.query(GeneralItem)
+            .filter(GeneralItem.trip_id == trip_id)
+            .all()
+        )
+        total_general = sum(gi.price or 0.0 for gi in general_items)
+        general_breakdown = [
+            {"name": gi.name, "cost": gi.price or 0.0}
+            for gi in general_items
+            if gi.price
+        ]
+        return {
+            "trip_name": trip.name,
+            "days": days_breakdown,
+            "general_items": general_breakdown,
+            "totals": {
+                "hotels": total_hotels,
+                "activities": total_activities,
+                "general_items": total_general,
+                "grand_total": total_hotels + total_activities + total_general,
+            },
+        }
     finally:
         session.close()

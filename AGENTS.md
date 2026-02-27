@@ -53,5 +53,15 @@ app/
 ```
 
 ## AI Integration Details
-- **Streaming**: Itinerary generation streams both "Reasoning" and "JSON" back to the UI via SSE.
+
+### Itinerary Generation (`services/ai.py`)
+- **Streaming**: Generation streams both "Reasoning" and "JSON" back to the UI via SSE (`/api/trips/<id>/generate_stream`).
 - **Logging**: All AI prompts and responses are logged in `logs/trip_{id}/` with timestamps. Refer to these logs when debugging LLM failures.
+
+### AI Chat Agent (`services/agent.py`)
+- **Streaming**: The chat agent streams events via SSE through `/agent/stream` (POST). Events are JSON objects with `type` = `status | result | error`, plus a final `[DONE]` sentinel.
+- **Persistent History**: Uses LangGraph's `MemorySaver` checkpointer. Each trip has a `thread_id` stored in the Flask session. Call `DELETE /agent/history/<trip_id>` to clear it.
+- **Lazy model init**: `get_model()` / `get_tool_model()` initialise `ChatOllama` on first call, so the app starts even if Ollama is not running.
+- **Intents**: The agent resolves one of four intents before calling an LLM tool — `activities`, `hotels`, `budget`, `summary`.
+- **Structured output**: `propose_activities` and `propose_hotels` use Pydantic models (`ActivityCandidatesResponse`, `HotelCandidatesResponse`) with `.with_structured_output()` for reliable parsing.
+- **Cost summary**: `dal.get_trip_cost_summary(trip_id)` aggregates hotel, activity, and general item costs; used by the `estimate_budget` tool.

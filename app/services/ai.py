@@ -179,7 +179,7 @@ def generate_itinerary(
         chat = client_factory()
     else:
         chat = ChatOllama(
-            model=model or os.environ.get("OLLAMA_MODEL", "gemma2:9b"),
+            model=model or os.environ.get("OLLAMA_MODEL", "qwen2.5:7b"),
             temperature=0,
         )
 
@@ -237,8 +237,8 @@ def stream_itinerary_generation(
         HumanMessage(content=msgs_dicts[1]["content"])
     ]
     
-    model_name = os.environ.get("OLLAMA_MODEL", "gemma2:9b")
-    chat = ChatOllama(model=model_name, temperature=0.2)
+    model_name = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")
+    chat = ChatOllama(model=model_name, temperature=0)
     
     # Stream the tokens
     for chunk in chat.stream(messages):
