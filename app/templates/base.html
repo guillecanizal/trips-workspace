@@ -408,6 +408,14 @@
         margin-bottom: 1rem;
       }
       details.trip-panel summary::-webkit-details-marker { display:none; }
+      .knowledge-general {
+        white-space: pre-wrap;
+        font-family: inherit;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        margin: 0;
+        color: #c8d8f0;
+      }
       .table-like {
         width: 100%;
         border-collapse: collapse;
@@ -791,6 +799,7 @@
                   const evt = JSON.parse(dataStr);
                   if (evt.type === 'status' && callbacks.onStatus) callbacks.onStatus(evt.message);
                   else if (evt.type === 'result' && callbacks.onResult) callbacks.onResult(evt.data);
+                  else if (evt.type === 'text' && callbacks.onText) callbacks.onText(evt.content);
                   else if (evt.type === 'error' && callbacks.onError) callbacks.onError(evt.message);
                 } catch (e) { /* ignore parse errors */ }
               }
@@ -1111,6 +1120,10 @@
             showTypingIndicator('Pensando...');
             await callAgentStream(message, {
               onStatus: (msg) => updateTypingText(msg),
+              onText: (text) => {
+                hideTypingIndicator();
+                appendChat('assistant', text);
+              },
               onResult: (result) => {
                 hideTypingIndicator();
                 appendChat('assistant', describeResult(result));

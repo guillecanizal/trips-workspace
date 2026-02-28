@@ -18,6 +18,7 @@ class Trip(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    knowledge_general: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     days: Mapped[list["Day"]] = relationship(
         "Day", back_populates="trip", cascade="all, delete-orphan"
@@ -33,6 +34,7 @@ class Trip(Base):
             "description": self.description,
             "start_date": self.start_date.isoformat() if self.start_date else None,
             "end_date": self.end_date.isoformat() if self.end_date else None,
+            "knowledge_general": self.knowledge_general,
         }
         if include_children:
             data["days"] = [day.to_dict(include_children=True) for day in self.days]

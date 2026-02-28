@@ -90,11 +90,13 @@ def _build_messages(prompt: str) -> list[dict[str, str]]:
                 "cancelable": None,
             }
         ],
+        "knowledge_general": "",
     }
     rules = "\n".join(
         [
             "Rules:",
             "- Avoid extra commentary or text outside the JSON.",
+            "- Populate knowledge_general with 6-10 short labeled paragraphs covering: currency, climate for the travel period, language, gastronomy, culture, transport, safety, and useful travel tips specific to this destination.",
             "- Each date must appear exactly once.",
             "- If all days belong to the same city, use ONE consistent hotel (same 'name' and 'notes') for all days.",
             "- Always include hotel 'location' and 'description' fields.",

@@ -113,6 +113,15 @@
   </div>
 </details>
 
+{% if trip.knowledge_general %}
+<details class="trip-panel collapsible">
+  <summary>Destination information</summary>
+  <div>
+    <pre class="knowledge-general">{{ trip.knowledge_general }}</pre>
+  </div>
+</details>
+{% endif %}
+
 {% if days %}
 {% for day in days %}
 <details class="trip-panel collapsible">

@@ -432,6 +432,36 @@ def _activity_block(activity: Any, S: dict[str, ParagraphStyle]) -> list[Any]:
 
 
 # ---------------------------------------------------------------------------
+# Destination knowledge block
+# ---------------------------------------------------------------------------
+
+def _knowledge_block(knowledge: str, S: dict[str, ParagraphStyle]) -> list[Any]:
+    """Render knowledge_general text as labeled paragraphs."""
+    elems: list[Any] = [
+        KeepTogether([
+            Paragraph("INFORMACIÓN DEL DESTINO", S["act_section"]),
+            _hr_steel(),
+        ]),
+    ]
+    for line in knowledge.splitlines():
+        line = line.strip()
+        if not line:
+            elems.append(Spacer(1, 2 * mm))
+            continue
+        # Lines with a label pattern like "CURRENCY: ..." or "Moneda: ..."
+        if ":" in line:
+            colon = line.index(":")
+            label = line[:colon].strip()
+            rest = line[colon + 1:].strip()
+            if label and rest:
+                elems.append(Paragraph(f"<b>{label}:</b> {rest}", S["body"]))
+                continue
+        elems.append(Paragraph(line, S["body"]))
+    elems.append(Spacer(1, 6 * mm))
+    return elems
+
+
+# ---------------------------------------------------------------------------
 # Page footer canvas
 # ---------------------------------------------------------------------------
 
@@ -499,6 +529,11 @@ def generate_trip_pdf(
         for item in general_items:
             story.extend(_general_item_block(item, S))
         story.append(Spacer(1, 4 * mm))
+
+    # Destination knowledge
+    knowledge = (trip.knowledge_general or "").strip()
+    if knowledge:
+        story.extend(_knowledge_block(knowledge, S))
 
     # Days
     for index, day in enumerate(ordered_days, start=1):

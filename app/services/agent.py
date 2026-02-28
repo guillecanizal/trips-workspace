@@ -1,4 +1,4 @@
-"""LangGraph agent with LangChain tools for proposing activities or hotels."""
+"""Hybrid chat agent with LangChain tools for trip assistance."""
 
 from __future__ import annotations
 
@@ -8,8 +8,6 @@ from typing import Any, Callable, Dict, Generator, Literal, Optional, TypedDict
 
 from langchain_core.tools import tool
 from langchain_ollama import ChatOllama
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import END, StateGraph
 from pydantic import BaseModel
 
 from app import dal
@@ -21,7 +19,6 @@ MODEL_NAME = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")
 # ---------------------------------------------------------------------------
 _model: ChatOllama | None = None
 _tool_model: Any = None
-_workflow: Any = None
 
 
 def get_model() -> ChatOllama:
@@ -361,6 +358,183 @@ def summarize_trip(trip_id: int) -> Dict[str, Any]:
 TOOLS = [propose_activities, propose_hotels, estimate_budget, summarize_trip]
 TOOL_REGISTRY: Dict[str, Callable[..., Any]] = {t.name: t for t in TOOLS}
 
+# ---------------------------------------------------------------------------
+# In-memory conversation history (ephemeral, same contract as MemorySaver)
+# ---------------------------------------------------------------------------
+
+_chat_histories: Dict[str, list] = {}
+
+
+def _get_history(thread_id: str) -> list:
+    return _chat_histories.setdefault(thread_id, [])
+
+
+def _append_history(thread_id: str, role: str, content: str) -> None:
+    _chat_histories.setdefault(thread_id, []).append(
+        {"role": role, "content": content}
+    )
+
+
+def clear_thread(thread_id: str) -> None:
+    """Clear conversation history for a thread."""
+    _chat_histories.pop(thread_id, None)
+
+
+# ---------------------------------------------------------------------------
+# Knowledge enrichment
+# ---------------------------------------------------------------------------
+
+
+def _enrich_knowledge_general(trip_id: int, new_info: str) -> None:
+    """Merge new_info into Trip.knowledge_general using the LLM."""
+    try:
+        trip = dal.get_trip_compact(trip_id)
+        current = (trip.get("knowledge_general") or "").strip()
+
+        if not current:
+            prompt = (
+                "You are a travel information assistant. "
+                "You receive a chat reply about a trip. "
+                "If it contains useful facts about the destination (geography, population, culture, climate, currency, language, transport, safety, gastronomy, tips, etc.), "
+                "write a concise destination information document with labeled paragraphs.\n\n"
+                f"CHAT REPLY:\n{new_info}\n\n"
+                "If the reply contains no relevant destination information (e.g. it is conversational, an error, or unrelated), "
+                "reply with exactly: NO_UPDATE\n\n"
+                "Otherwise write 6-10 short labeled paragraphs. Be concise and structured."
+            )
+        else:
+            prompt = (
+                "You maintain a concise destination information document for a trip.\n\n"
+                f"CURRENT DOCUMENT:\n{current}\n\n"
+                f"NEW CHAT REPLY:\n{new_info}\n\n"
+                "If the reply contains useful new facts about the destination (geography, population, culture, climate, currency, language, transport, safety, gastronomy, tips, etc.), "
+                "rewrite the document integrating them. Keep it concise, structured, and non-redundant.\n"
+                "If the reply contains no relevant destination information, "
+                "reply with exactly: NO_UPDATE"
+            )
+
+        response = get_model().invoke([{"role": "user", "content": prompt}])
+        merged = getattr(response, "content", str(response)).strip()
+        if merged and merged != "NO_UPDATE":
+            dal.update_knowledge_general(trip_id, merged)
+    except Exception:
+        pass  # enrichment is best-effort; never block the chat response
+
+
+# ---------------------------------------------------------------------------
+# Hybrid chat stream
+# ---------------------------------------------------------------------------
+
+
+def hybrid_chat_stream(
+    trip_id: int, message: str, *, thread_id: str | None = None
+) -> Generator[Dict[str, Any], None, None]:
+    """Stream a hybrid chat response: parse_intent gate first, then LLM decides.
+
+    Flow:
+    1. parse_intent: if clear actionable intent + complete params → direct_call
+    2. Otherwise: LLM with bound tools decides (text reply or tool call)
+    3. If message is a general destination question: enrich knowledge_general
+    """
+    tid = thread_id or f"trip_{trip_id}"
+
+    # --- Gate 1: deterministic intent detection (keeps tool reliability) ---
+    fake_state: AgentState = {
+        "trip_id": trip_id,
+        "message": message,
+        "intent": None,
+        "day_index": None,
+        "requested_count": None,
+        "result": None,
+    }
+    parsed = parse_intent_node(fake_state)
+    route = should_use_direct_call(parsed)
+
+    if route == "direct_call":
+        yield {"type": "status", "message": "Procesando solicitud..."}
+        try:
+            result_state = direct_call_node(parsed)
+            result = result_state.get("result")
+            if result:
+                _append_history(tid, "user", message)
+                _append_history(tid, "assistant", f"[tool:{parsed['intent']}]")
+                yield {"type": "result", "data": result}
+            else:
+                yield {"type": "error", "message": "No result from tool"}
+        except Exception as exc:
+            yield {"type": "error", "message": str(exc)}
+        return
+
+    # --- Gate 2: LLM with optional tool use ---
+    yield {"type": "status", "message": "Consultando el modelo de IA..."}
+
+    trip = dal.get_trip_compact(trip_id)
+    knowledge = (trip.get("knowledge_general") or "").strip()
+
+    system_prompt = (
+        "Eres un asistente de viajes conversacional. "
+        "Tienes acceso a herramientas para proponer actividades, hoteles, presupuesto y resumen.\n\n"
+        "HERRAMIENTAS DISPONIBLES:\n"
+        "- propose_activities: cuando el usuario pide actividades/planes/qué hacer un día específico\n"
+        "- propose_hotels: cuando el usuario pide hoteles/alojamiento un día específico\n"
+        "- estimate_budget: cuando el usuario pide presupuesto/costes del viaje\n"
+        "- summarize_trip: cuando el usuario pide un resumen/narrativa del viaje\n\n"
+        "CONTEXTO DEL VIAJE:\n"
+        + f"Trip ID: {trip_id}\n"
+        + f"Nombre: {trip.get('name')}\n"
+        + f"Fechas: {trip.get('start_date')} → {trip.get('end_date')}\n"
+        + f"Descripción: {trip.get('description') or 'N/A'}\n"
+    )
+
+    if knowledge:
+        system_prompt += f"\nINFORMACIÓN SOBRE EL DESTINO:\n{knowledge}\n"
+
+    system_prompt += (
+        "\nINSTRUCCIONES:\n"
+        f"- Siempre usa trip_id={trip_id} en las herramientas\n"
+        "- Si el usuario hace una pregunta conversacional, responde directamente en texto\n"
+        "- Solo llama a una herramienta si el usuario lo pide explícitamente\n"
+        "- Responde en el mismo idioma que el usuario\n"
+    )
+
+    history = _get_history(tid)
+    messages = (
+        [{"role": "system", "content": system_prompt}]
+        + history[-10:]  # keep last 10 exchanges to bound context size
+        + [{"role": "user", "content": message}]
+    )
+
+    try:
+        response = get_tool_model().invoke(messages)
+        tool_calls = getattr(response, "tool_calls", None) or (
+            getattr(response, "additional_kwargs", {}) or {}
+        ).get("tool_calls")
+
+        if tool_calls:
+            call = tool_calls[0]
+            tool_name = call.get("name")
+            tool_impl = TOOL_REGISTRY.get(tool_name or "")
+            if not tool_impl:
+                yield {"type": "error", "message": f"Unknown tool: {tool_name}"}
+                return
+            tool_args = dict(call.get("args") or {})
+            tool_args.setdefault("trip_id", trip_id)
+            result = tool_impl.invoke(tool_args)
+            _append_history(tid, "user", message)
+            _append_history(tid, "assistant", f"[tool:{tool_name}]")
+            yield {"type": "result", "data": result}
+        else:
+            text = getattr(response, "content", str(response)).strip()
+            _append_history(tid, "user", message)
+            _append_history(tid, "assistant", text)
+            yield {"type": "text", "content": text}
+
+            if text:
+                _enrich_knowledge_general(trip_id, text)
+
+    except Exception as exc:
+        yield {"type": "error", "message": str(exc)}
+
 
 # ---------------------------------------------------------------------------
 # LangGraph nodes
@@ -505,111 +679,3 @@ def llm_agent_node(state: AgentState) -> AgentState:
     return {**state, "result": result}
 
 
-# ---------------------------------------------------------------------------
-# Graph construction (lazy)
-# ---------------------------------------------------------------------------
-
-
-def _build_graph():
-    """Construye el grafo con routing condicional."""
-    graph = StateGraph(AgentState)
-
-    graph.add_node("parse_intent", parse_intent_node)
-    graph.add_node("direct_call", direct_call_node)
-    graph.add_node("llm_agent", llm_agent_node)
-
-    graph.set_entry_point("parse_intent")
-
-    graph.add_conditional_edges(
-        "parse_intent",
-        should_use_direct_call,
-        {
-            "direct_call": "direct_call",
-            "llm_agent": "llm_agent",
-        },
-    )
-
-    graph.add_edge("direct_call", END)
-    graph.add_edge("llm_agent", END)
-
-    return graph.compile(checkpointer=MemorySaver())
-
-
-def get_workflow():
-    """Return the compiled workflow, creating it on first use."""
-    global _workflow
-    if _workflow is None:
-        _workflow = _build_graph()
-    return _workflow
-
-
-def clear_thread(thread_id: str) -> None:
-    """Delete all checkpoints for a conversation thread."""
-    # Rebuilding the workflow resets in-memory state for all threads.
-    # A targeted clear is not supported by MemorySaver, so we reset the
-    # whole workflow. This is acceptable because MemorySaver is ephemeral
-    # (lost on server restart anyway).
-    global _workflow
-    _workflow = None
-
-
-_NODE_STATUS_MESSAGES: Dict[str, str] = {
-    "parse_intent": "Analizando tu mensaje...",
-    "direct_call": "Procesando solicitud...",
-    "llm_agent": "Consultando el modelo de IA...",
-}
-
-
-def stream_agent_execution(
-    trip_id: int, message: str, *, thread_id: str | None = None
-) -> Generator[Dict[str, Any], None, None]:
-    """Stream agent execution, yielding status/result/error events per node."""
-    initial_state: AgentState = {
-        "trip_id": trip_id,
-        "message": message,
-        "intent": None,
-        "day_index": None,
-        "requested_count": None,
-        "result": None,
-    }
-    config: Dict[str, Any] = {}
-    if thread_id:
-        config["configurable"] = {"thread_id": thread_id}
-
-    try:
-        last_result: Dict[str, Any] | None = None
-        for event in get_workflow().stream(initial_state, config=config):
-            for node_name, node_output in event.items():
-                status_msg = _NODE_STATUS_MESSAGES.get(node_name)
-                if status_msg:
-                    yield {"type": "status", "message": status_msg}
-                if isinstance(node_output, dict) and node_output.get("result"):
-                    last_result = node_output["result"]
-        if last_result:
-            yield {"type": "result", "data": last_result}
-        else:
-            yield {"type": "error", "message": "agent_failed"}
-    except Exception as exc:
-        yield {"type": "error", "message": str(exc)}
-
-
-def run_simple_agent(
-    trip_id: int, message: str, *, thread_id: str | None = None
-) -> Dict[str, Any]:
-    """Ejecuta el agente con el grafo mejorado."""
-    initial_state: AgentState = {
-        "trip_id": trip_id,
-        "message": message,
-        "intent": None,
-        "day_index": None,
-        "requested_count": None,
-        "result": None,
-    }
-    config: Dict[str, Any] = {}
-    if thread_id:
-        config["configurable"] = {"thread_id": thread_id}
-    final_state: AgentState = get_workflow().invoke(initial_state, config=config)
-    result = final_state.get("result")
-    if not result:
-        raise ValueError("agent_failed")
-    return result

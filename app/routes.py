@@ -15,7 +15,7 @@ from sqlalchemy import select
 
 from .models import Activity, Day, GeneralItem, Trip
 from .services.ai import AIGenerationError, generate_itinerary, build_full_prompt_text, _extract_json_block, stream_itinerary_generation
-from .services.agent import clear_thread, run_simple_agent, stream_agent_execution
+from .services.agent import clear_thread, hybrid_chat_stream
 from .utils.maps import enrich_with_maps_links, build_itinerary_maps_url
 from .utils.csv_export import generate_trip_csv
 from .utils.pdf_export import generate_trip_pdf
@@ -250,6 +250,10 @@ def apply_ai_payload(session, trip: Trip, payload: dict) -> dict[str, int]:
         )
         session.add(general_item)
         summary["general_items"] += 1
+
+    knowledge = payload.get("knowledge_general")
+    if isinstance(knowledge, str) and knowledge.strip():
+        trip.knowledge_general = knowledge.strip()
 
     return summary
 
@@ -924,26 +928,6 @@ def export_trip_csv(trip_id: int):
 
 
 
-@bp.post("/agent")
-def agent_chat():
-    payload = request.get_json(silent=True) or {}
-    trip_id = payload.get("trip_id")
-    message = (payload.get("message") or "").strip()
-    if not trip_id or not message:
-        return jsonify({"error": "trip_id and message are required"}), 400
-    thread_key = f"agent_thread_{trip_id}"
-    thread_id = flask_session.get(thread_key)
-    if not thread_id:
-        import uuid
-        thread_id = str(uuid.uuid4())
-        flask_session[thread_key] = thread_id
-    try:
-        result = run_simple_agent(trip_id, message, thread_id=thread_id)
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
-    flask_session.pop(_pending_key(trip_id), None)
-    return jsonify({"result": result, "pending_patch": None})
-
 
 @bp.post("/agent/stream")
 def agent_chat_stream():
@@ -961,7 +945,7 @@ def agent_chat_stream():
 
     def generate():
         try:
-            for event in stream_agent_execution(trip_id, message, thread_id=thread_id):
+            for event in hybrid_chat_stream(trip_id, message, thread_id=thread_id):
                 yield f"data: {json.dumps(event)}\n\n"
         except Exception as exc:
             yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"

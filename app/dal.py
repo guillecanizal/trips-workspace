@@ -63,6 +63,7 @@ def get_trip_compact(trip_id: int) -> Dict[str, Any]:
             "description": trip.description,
             "start_date": trip.start_date.isoformat() if trip.start_date else None,
             "end_date": trip.end_date.isoformat() if trip.end_date else None,
+            "knowledge_general": trip.knowledge_general,
             "days": [_serialize_day(day) for day in ordered_days],
         }
     finally:
@@ -122,6 +123,19 @@ def apply_activity(trip_id: int, day: str, activity: Dict[str, Any]) -> Dict[str
         session.commit()
         session.refresh(target_day)
         return _serialize_day(target_day)
+    finally:
+        session.close()
+
+
+def update_knowledge_general(trip_id: int, text: str) -> None:
+    """Overwrite Trip.knowledge_general with the given text."""
+    session = _get_session()
+    try:
+        trip = session.get(Trip, trip_id)
+        if not trip:
+            raise ValueError("trip_not_found")
+        trip.knowledge_general = text
+        session.commit()
     finally:
         session.close()
 
