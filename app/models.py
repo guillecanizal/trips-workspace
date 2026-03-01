@@ -48,6 +48,7 @@ class Day(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     trip_id: Mapped[int] = mapped_column(ForeignKey("trips.id"), nullable=False)
     date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    tagline: Mapped[str | None] = mapped_column(String(100), nullable=True)
     hotel_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     hotel_location: Mapped[str | None] = mapped_column(String(255), nullable=True)
     hotel_description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -70,6 +71,7 @@ class Day(Base):
             "id": self.id,
             "trip_id": self.trip_id,
             "date": self.date.isoformat() if self.date else None,
+            "tagline": self.tagline,
             "hotel_name": self.hotel_name,
             "hotel_location": self.hotel_location,
             "hotel_description": self.hotel_description,

@@ -43,17 +43,16 @@ def enrich_with_maps_links(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _clean_point(name: str | None, location: str | None) -> str | None:
-    if not name or not location:
+    """Return a Maps-ready string. Name is optional — location alone is enough."""
+    location = (location or "").strip()
+    if not location:
         return None
-    name = name.strip()
-    location = location.strip()
-    if not name or not location:
-        return None
-    return f"{name}, {location}"
+    name = (name or "").strip()
+    return f"{name}, {location}" if name else location
 
 
 def build_itinerary_maps_url(data: Dict[str, Any]) -> str | None:
-    """Return a Maps Directions URL based solely on hotel locations."""
+    """Return a Maps Directions URL using hotel locations, falling back to activity locations."""
     if not isinstance(data, dict):
         return None
 
@@ -66,10 +65,20 @@ def build_itinerary_maps_url(data: Dict[str, Any]) -> str | None:
     for day in days:
         if not isinstance(day, dict):
             continue
-        hotel = day.get("hotel")
-        if not isinstance(hotel, dict):
-            continue
+
+        # Prefer hotel location
+        hotel = day.get("hotel") or {}
         point = _clean_point(hotel.get("name"), hotel.get("location"))
+
+        # Fall back to first activity with a location
+        if not point:
+            for activity in day.get("activities") or []:
+                if not isinstance(activity, dict):
+                    continue
+                point = _clean_point(activity.get("name"), activity.get("location"))
+                if point:
+                    break
+
         if not point or point == last_point:
             continue
         points.append(point)

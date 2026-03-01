@@ -422,12 +422,50 @@ def _enrich_knowledge_general(trip_id: int, new_info: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Tagline suggestion
+# ---------------------------------------------------------------------------
+
+
+def suggest_day_tagline(day_id: int) -> str:
+    """Generate a 2-5 word tagline for a day based on its hotel and activities.
+
+    Returns an empty string on any failure (best-effort, never raises).
+    """
+    try:
+        day_data = dal.get_day_compact(day_id)
+        location = day_data.get("hotel_location") or ""
+        activities = [a["name"] for a in day_data.get("activities", []) if a.get("name")]
+        if not location and not activities:
+            return ""
+        parts: list[str] = []
+        if location:
+            parts.append(f"Location: {location}")
+        if activities:
+            parts.append("Activities: " + ", ".join(activities[:5]))
+        context = "\n".join(parts)
+        prompt = (
+            "You are a travel writer. Given this day's info, write a short evocative tagline "
+            "(2 to 5 words, no quotes, no punctuation at the end).\n\n"
+            f"{context}\n\nTagline:"
+        )
+        response = get_model().invoke([{"role": "user", "content": prompt}])
+        tagline = getattr(response, "content", str(response)).strip().strip('"').strip("'")
+        return tagline[:100]
+    except Exception:
+        return ""
+
+
+# ---------------------------------------------------------------------------
 # Hybrid chat stream
 # ---------------------------------------------------------------------------
 
 
 def hybrid_chat_stream(
-    trip_id: int, message: str, *, thread_id: str | None = None
+    trip_id: int,
+    message: str,
+    *,
+    thread_id: str | None = None,
+    day_id: int | None = None,
 ) -> Generator[Dict[str, Any], None, None]:
     """Stream a hybrid chat response: parse_intent gate first, then LLM decides.
 
@@ -435,19 +473,42 @@ def hybrid_chat_stream(
     1. parse_intent: if clear actionable intent + complete params → direct_call
     2. Otherwise: LLM with bound tools decides (text reply or tool call)
     3. If message is a general destination question: enrich knowledge_general
+
+    When day_id is provided, the day_index is resolved internally and injected
+    into the agent state so the user doesn't need to say "día 3".
     """
     tid = thread_id or f"trip_{trip_id}"
+
+    # Resolve day_index from day_id if provided
+    resolved_day_index: int | None = None
+    day_context_prompt: str = ""
+    if day_id is not None:
+        try:
+            day_info = dal.get_day_compact(day_id)
+            resolved_day_index = day_info.get("day_index")
+            day_date = day_info.get("date") or "?"
+            day_location = (day_info.get("hotel") or {}).get("location") or ""
+            day_context_prompt = (
+                f"You are helping with Day {resolved_day_index} — {day_date}"
+                + (f" in {day_location}" if day_location else "")
+                + ". "
+            )
+        except ValueError:
+            pass
 
     # --- Gate 1: deterministic intent detection (keeps tool reliability) ---
     fake_state: AgentState = {
         "trip_id": trip_id,
         "message": message,
         "intent": None,
-        "day_index": None,
+        "day_index": resolved_day_index,
         "requested_count": None,
         "result": None,
     }
     parsed = parse_intent_node(fake_state)
+    # When day_id provided, preserve the resolved day_index even if regex didn't find one
+    if resolved_day_index and not parsed.get("day_index"):
+        parsed["day_index"] = resolved_day_index
     route = should_use_direct_call(parsed)
 
     if route == "direct_call":
@@ -473,7 +534,8 @@ def hybrid_chat_stream(
 
     system_prompt = (
         "Eres un asistente de viajes conversacional. "
-        "Tienes acceso a herramientas para proponer actividades, hoteles, presupuesto y resumen.\n\n"
+        + (day_context_prompt if day_context_prompt else "")
+        + "Tienes acceso a herramientas para proponer actividades, hoteles, presupuesto y resumen.\n\n"
         "HERRAMIENTAS DISPONIBLES:\n"
         "- propose_activities: cuando el usuario pide actividades/planes/qué hacer un día específico\n"
         "- propose_hotels: cuando el usuario pide hoteles/alojamiento un día específico\n"

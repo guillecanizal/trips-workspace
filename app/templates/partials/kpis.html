@@ -1,0 +1,13 @@
+<div class="flex flex-wrap items-center gap-3 rounded-xl bg-surface-light border border-border px-5 py-3 text-sm">
+  <span class="font-semibold text-slate-300">{{ stats.day_count }} days</span>
+  <span class="text-slate-500">|</span>
+  <span class="text-slate-300">{{ stats.activity_count }} activities</span>
+  <span class="text-slate-500">|</span>
+  <span class="text-slate-300">&euro;{{ '%.2f' % ((stats.total_price or 0) | float) }}</span>
+  <span class="text-slate-500">|</span>
+  <span class="text-slate-300">{{ stats.total_distance_km or 0 }} km</span>
+  {% if stats.general_item_count %}
+  <span class="text-slate-500">|</span>
+  <span class="text-slate-300">{{ stats.general_item_count }} items</span>
+  {% endif %}
+</div>

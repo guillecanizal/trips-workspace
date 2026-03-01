@@ -33,6 +33,7 @@ def _serialize_day(day: Day) -> Dict[str, Any]:
     return {
         "id": day.id,
         "date": day.date.isoformat() if day.date else None,
+        "tagline": day.tagline,
         "hotel": {
             "name": day.hotel_name,
             "location": day.hotel_location,
@@ -65,6 +66,45 @@ def get_trip_compact(trip_id: int) -> Dict[str, Any]:
             "end_date": trip.end_date.isoformat() if trip.end_date else None,
             "knowledge_general": trip.knowledge_general,
             "days": [_serialize_day(day) for day in ordered_days],
+        }
+    finally:
+        session.close()
+
+
+def update_day_tagline(day_id: int, tagline: str) -> None:
+    """Persist a generated tagline for a day."""
+    session = _get_session()
+    try:
+        day = session.get(Day, day_id)
+        if day:
+            day.tagline = tagline.strip()[:100]
+            session.commit()
+    finally:
+        session.close()
+
+
+def get_day_compact(day_id: int) -> Dict[str, Any]:
+    """Return a day with activities, trip context, and 1-based day_index."""
+    session = _get_session()
+    try:
+        day = session.get(Day, day_id)
+        if not day:
+            raise ValueError("Day not found")
+        trip = day.trip
+        ordered_days = sorted(
+            trip.days,
+            key=lambda d: (d.date or date.max, d.id),
+        )
+        day_index = next(
+            (i + 1 for i, d in enumerate(ordered_days) if d.id == day_id), 0
+        )
+        return {
+            **_serialize_day(day),
+            "day_index": day_index,
+            "trip_id": trip.id,
+            "trip_name": trip.name,
+            "trip_start": trip.start_date.isoformat() if trip.start_date else None,
+            "trip_end": trip.end_date.isoformat() if trip.end_date else None,
         }
     finally:
         session.close()

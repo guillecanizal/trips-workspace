@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}{{ trip.name }}{% endblock %}
+
+{% block header_actions %}
+<div class="flex items-center gap-2 text-sm">
+  <a href="{{ url_for('main.export_trip_pdf', trip_id=trip.id) }}"
+     class="hover:text-blue-300 transition" title="PDF" target="_blank">PDF</a>
+  <a href="{{ url_for('main.export_trip_csv', trip_id=trip.id) }}"
+     class="hover:text-blue-300 transition" title="CSV" target="_blank">CSV</a>
+  <a href="#" data-itinerary-maps="{{ url_for('main.itinerary_maps_url', trip_id=trip.id) }}"
+     class="hover:text-blue-300 transition" title="Maps">Maps</a>
+</div>
+{% endblock %}
+
+{% block main_class %}pb-[34vh]{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+
+    {# KPIs #}
+    <div id="kpis-bar">
+      {% include "partials/kpis.html" %}
+    </div>
+
+    {# Trip edit (collapsible) #}
+    <details class="rounded-xl bg-surface-light border border-border" x-data="{ open: false }" :open="open">
+      <summary @click.prevent="open = !open"
+               class="px-5 py-3 cursor-pointer font-semibold flex justify-between items-center select-none">
+        <span>{{ trip.name }}</span>
+        <span class="text-xs text-slate-400">{{ trip.start_date }} &rarr; {{ trip.end_date }}</span>
+      </summary>
+      <div class="px-5 pb-4 border-t border-border pt-3">
+        <form method="post" class="space-y-3 max-w-lg" hx-boost="true">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium mb-1">Name</label>
+              <input name="name" value="{{ trip.name }}" required
+                     class="w-full bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium mb-1">Description</label>
+              <input name="description" value="{{ trip.description or '' }}"
+                     class="w-full bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent" />
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-medium mb-1">Start</label>
+              <input name="start_date" type="date" value="{{ trip.start_date.isoformat() if trip.start_date else '' }}"
+                     class="w-full bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium mb-1">End</label>
+              <input name="end_date" type="date" value="{{ trip.end_date.isoformat() if trip.end_date else '' }}"
+                     class="w-full bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent" />
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition">Save</button>
+            <button type="submit" formaction="{{ url_for('main.delete_trip_page', trip_id=trip.id) }}"
+                    onclick="return confirm('Delete this entire trip?');"
+                    class="text-xs text-red-400 hover:text-red-300 px-3 py-1.5 rounded border border-red-900 hover:border-red-700 transition">Delete trip</button>
+          </div>
+        </form>
+      </div>
+    </details>
+
+    {# Calendar Grid #}
+    <div class="rounded-xl bg-surface-light border border-border p-4">
+      <h2 class="text-sm font-semibold mb-3 text-slate-400 uppercase tracking-wider">Calendar</h2>
+      {% set weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
+      <div class="grid grid-cols-7 gap-1 text-xs text-center mb-1">
+        {% for wd in weekdays %}
+        <div class="text-slate-500 font-medium py-1">{{ wd }}</div>
+        {% endfor %}
+      </div>
+      {% if days %}
+      {# Build calendar cells as dicts to avoid Jinja2 scoping issues with mixed types #}
+      {% set ns = namespace(cells=[]) %}
+      {% set first_date = days[0].date %}
+      {% set last_date = days[-1].date %}
+      {% if first_date and last_date %}
+        {# Pad start to Monday (isoweekday: Mon=1..Sun=7) #}
+        {% for i in range(first_date.isoweekday() - 1) %}
+          {% set _ = ns.cells.append(none) %}
+        {% endfor %}
+        {# Fill each date in the range #}
+        {% set total_days_count = (last_date - first_date).days + 1 %}
+        {% for i in range(total_days_count) %}
+          {% set current_date = first_date + timedelta(days=i) %}
+          {# Use namespace so the inner loop assignment is visible outside it #}
+          {% set found = namespace(day=none, idx=0) %}
+          {% for d in days %}
+            {% if d.date and d.date == current_date %}
+              {% set found.day = d %}
+              {% set found.idx = loop.index %}
+            {% endif %}
+          {% endfor %}
+          {% if found.day %}
+            {% set _ = ns.cells.append({'is_day': true, 'day': found.day, 'day_num': found.idx}) %}
+          {% else %}
+            {% set _ = ns.cells.append({'is_day': false, 'date': current_date}) %}
+          {% endif %}
+        {% endfor %}
+        {# Pad end to complete the last week row #}
+        {% set remainder = ns.cells | length % 7 %}
+        {% if remainder > 0 %}
+          {% for i in range(7 - remainder) %}
+            {% set _ = ns.cells.append(none) %}
+          {% endfor %}
+        {% endif %}
+      {% endif %}
+
+      <div class="grid grid-cols-7 gap-1">
+        {% for cell in ns.cells %}
+          {% if cell is none %}
+            <div class="h-20 rounded bg-surface/50"></div>
+          {% elif not cell.is_day %}
+            {# Gap date — no trip day on this calendar date #}
+            <div class="h-20 rounded bg-surface/50 p-1.5 text-xs text-slate-600">{{ cell.date.day }}</div>
+          {% else %}
+            {% set day = cell.day %}
+            {# ── Resolve main location ── #}
+            {% set loc = namespace(val='') %}
+            {% if day.hotel_location %}
+              {% set loc.val = day.hotel_location %}
+            {% else %}
+              {% for a in day.activities %}
+                {% if a.location and not loc.val %}{% set loc.val = a.location %}{% endif %}
+              {% endfor %}
+            {% endif %}
+            {# ── Infer up to 3 activity emojis from activity names ── #}
+            {% set em = namespace(list=[]) %}
+            {% for a in day.activities %}
+              {% if em.list | length < 3 %}
+                {% set n = a.name | lower %}
+                {% if 'museo' in n or 'museum' in n or 'galería' in n or 'gallery' in n or 'arte' in n or 'art' in n %}
+                  {% if '🏛️' not in em.list %}{% set _ = em.list.append('🏛️') %}{% endif %}
+                {% elif 'playa' in n or 'beach' in n or 'costa' in n %}
+                  {% if '🏖️' not in em.list %}{% set _ = em.list.append('🏖️') %}{% endif %}
+                {% elif 'montaña' in n or 'mountain' in n or 'senderismo' in n or 'hike' in n or 'trek' in n %}
+                  {% if '🥾' not in em.list %}{% set _ = em.list.append('🥾') %}{% endif %}
+                {% elif 'restaurante' in n or 'restaurant' in n or 'cena' in n or 'dinner' in n or 'comida' in n or 'lunch' in n or 'tapas' in n or 'gastro' in n %}
+                  {% if '🍽️' not in em.list %}{% set _ = em.list.append('🍽️') %}{% endif %}
+                {% elif 'vino' in n or 'wine' in n or 'bodega' in n or 'winery' in n or 'cerveza' in n %}
+                  {% if '🍷' not in em.list %}{% set _ = em.list.append('🍷') %}{% endif %}
+                {% elif 'compras' in n or 'shopping' in n or 'mercado' in n or 'market' in n %}
+                  {% if '🛒' not in em.list %}{% set _ = em.list.append('🛒') %}{% endif %}
+                {% elif 'barco' in n or 'boat' in n or 'ferry' in n or 'crucero' in n or 'cruise' in n or 'velero' in n %}
+                  {% if '⛵' not in em.list %}{% set _ = em.list.append('⛵') %}{% endif %}
+                {% elif 'catedral' in n or 'church' in n or 'iglesia' in n or 'templo' in n or 'basilica' in n or 'basílica' in n or 'capilla' in n %}
+                  {% if '⛪' not in em.list %}{% set _ = em.list.append('⛪') %}{% endif %}
+                {% elif 'teatro' in n or 'theater' in n or 'concierto' in n or 'concert' in n or 'espectáculo' in n %}
+                  {% if '🎭' not in em.list %}{% set _ = em.list.append('🎭') %}{% endif %}
+                {% elif 'parque' in n or 'park' in n or 'jardín' in n or 'garden' in n or 'naturaleza' in n or 'nature' in n %}
+                  {% if '🌿' not in em.list %}{% set _ = em.list.append('🌿') %}{% endif %}
+                {% elif 'kayak' in n or 'surf' in n or 'deporte' in n or 'sport' in n or 'esquí' in n or 'ski' in n %}
+                  {% if '🏄' not in em.list %}{% set _ = em.list.append('🏄') %}{% endif %}
+                {% elif 'castillo' in n or 'castle' in n or 'fortaleza' in n or 'fortress' in n or 'palacio' in n or 'palace' in n %}
+                  {% if '🏰' not in em.list %}{% set _ = em.list.append('🏰') %}{% endif %}
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+            <a href="{{ url_for('main.view_day_page', trip_id=trip.id, day_id=day.id) }}"
+               class="rounded bg-surface border border-border hover:border-accent p-2 flex flex-col gap-0.5 text-xs transition group cursor-pointer min-h-[88px]">
+              {# 1. Weekday + date #}
+              <div class="font-semibold text-[11px] text-slate-300 group-hover:text-blue-400 leading-tight">
+                {{ day.date.strftime('%a %d') if day.date else '?' }}
+              </div>
+              {# 2. Location #}
+              {% if loc.val %}
+              <div class="text-[10px] text-blue-300 truncate leading-tight" title="{{ loc.val }}">{{ loc.val }}</div>
+              {% endif %}
+              {# 3. Tagline #}
+              {% if day.tagline %}
+              <div class="text-[10px] text-slate-400 line-clamp-2 leading-tight">{{ day.tagline }}</div>
+              {% endif %}
+              {# 4. Activity emojis #}
+              {% if em.list %}
+              <div class="text-[12px] leading-tight mt-auto">{{ em.list | join(' ') }}</div>
+              {% endif %}
+              {# 5. Driving km #}
+              {% if day.distance_km %}
+              <div class="text-[10px] text-slate-500 leading-tight {% if not em.list %}mt-auto{% endif %}">{{ day.distance_km|int }} km</div>
+              {% endif %}
+            </a>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-slate-500 text-sm">No days yet.</p>
+      {% endif %}
+    </div>
+
+    {# AI Generation (one-shot + external JSON) #}
+    {% include "partials/oneshot_panel.html" %}
+
+    {# General Items #}
+    <div id="general-items-section">
+      {% include "partials/general_items.html" %}
+    </div>
+
+    {# Knowledge #}
+    {% if trip.knowledge_general %}
+    <details class="rounded-xl bg-surface-light border border-border">
+      <summary class="px-5 py-3 cursor-pointer font-semibold text-sm select-none">Destination info</summary>
+      <div class="px-5 pb-4 border-t border-border pt-3">
+        <pre class="whitespace-pre-wrap text-sm text-slate-300 leading-relaxed">{{ trip.knowledge_general }}</pre>
+      </div>
+    </details>
+    {% endif %}
+</div>
+
+<script>
+  window.__TRIP_ID = {{ trip.id }};
+</script>
+{% endblock %}
+
+{% block chat_panel %}
+<div class="fixed bottom-0 inset-x-0 z-20">
+  <div class="max-w-7xl mx-auto px-4">
+    <div class="border border-slate-300/20 border-b-0 rounded-t-xl overflow-hidden shadow-2xl" style="height: 33vh;">
+      {% with chat_trip_id=trip.id, chat_day_id=none %}
+        {% include "partials/chat_panel.html" %}
+      {% endwith %}
+    </div>
+  </div>
+</div>
+{% endblock %}

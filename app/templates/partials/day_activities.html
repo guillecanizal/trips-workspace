@@ -1,0 +1,113 @@
+<div class="rounded-xl bg-surface-light border border-border p-5">
+  <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-3">Activities</h2>
+
+  {% if activities %}
+  <div class="space-y-2">
+    {% for activity in activities %}
+    <div x-data="{ editing: false }" class="rounded-lg border border-border bg-surface p-3">
+      {# Read view #}
+      <div x-show="!editing" class="flex items-start justify-between gap-2">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-500 font-mono">{{ loop.index }}.</span>
+            <span class="font-medium text-sm text-slate-200">{{ activity.name }}</span>
+          </div>
+          {% if activity.location %}
+          <div class="text-xs text-slate-400 mt-0.5 ml-5">{{ activity.location }}</div>
+          {% endif %}
+          {% if activity.description %}
+          <div class="text-xs text-slate-500 mt-0.5 ml-5 line-clamp-2">{{ activity.description }}</div>
+          {% endif %}
+          <div class="flex gap-2 text-xs text-slate-500 mt-1 ml-5">
+            {% if activity.price %}<span>&euro;{{ activity.price }}</span>{% endif %}
+            {% if activity.reservation_id %}<span>Ref: {{ activity.reservation_id }}</span>{% endif %}
+            {% if activity.link %}
+            <a href="{{ activity.link }}" target="_blank" rel="noreferrer" class="text-blue-400 hover:text-blue-300">Link</a>
+            {% endif %}
+            {% if activity.maps_link %}
+            <a href="{{ activity.maps_link }}" target="_blank" rel="noreferrer" class="text-blue-400 hover:text-blue-300">Map</a>
+            {% endif %}
+          </div>
+        </div>
+        <div class="flex gap-1 flex-shrink-0">
+          <button @click="editing = true" class="text-xs text-blue-400 hover:text-blue-300">Edit</button>
+          <form method="post" action="{{ url_for('main.delete_activity_page', activity_id=activity.id) }}"
+                hx-post="{{ url_for('main.delete_activity_page', activity_id=activity.id) }}"
+                hx-target="#activities-section" hx-swap="innerHTML"
+                hx-confirm="Delete this activity?">
+            <button type="submit" class="text-xs text-red-400 hover:text-red-300">Del</button>
+          </form>
+        </div>
+      </div>
+
+      {# Edit form #}
+      <form x-show="editing" x-cloak method="post"
+            action="{{ url_for('main.update_activity_page', activity_id=activity.id) }}"
+            hx-post="{{ url_for('main.update_activity_page', activity_id=activity.id) }}"
+            hx-target="#activities-section" hx-swap="innerHTML"
+            class="space-y-2">
+        <div class="grid grid-cols-2 gap-2">
+          <input name="name" value="{{ activity.name }}" required placeholder="Name"
+                 class="bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent" />
+          <input name="location" value="{{ activity.location or '' }}" placeholder="Location"
+                 class="bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent" />
+        </div>
+        <textarea name="description" rows="2" placeholder="Description"
+                  class="w-full bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent">{{ activity.description or '' }}</textarea>
+        <div class="grid grid-cols-3 gap-2">
+          <input name="price" type="number" step="0.01" value="{{ activity.price or '' }}" placeholder="Price"
+                 class="bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent" />
+          <input name="reservation_id" value="{{ activity.reservation_id or '' }}" placeholder="Reservation"
+                 class="bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent" />
+          <input name="link" type="url" value="{{ activity.link or '' }}" placeholder="Link"
+                 class="bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent" />
+        </div>
+        <input name="maps_link" type="url" value="{{ activity.maps_link or '' }}" placeholder="Maps link"
+               class="w-full bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent" />
+        <div class="flex gap-2">
+          <button type="submit"
+                  class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition">Save</button>
+          <button type="button" @click="editing = false"
+                  class="text-xs text-slate-400 hover:text-slate-300 px-3 py-1.5">Cancel</button>
+        </div>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-slate-500 text-xs">No activities yet.</p>
+  {% endif %}
+
+  {# Add activity form #}
+  <details class="mt-3" x-data="{ open: false }" :open="open">
+    <summary @click.prevent="open = !open"
+             class="text-xs text-blue-400 hover:text-blue-300 cursor-pointer select-none">+ Add activity</summary>
+    <form method="post" action="{{ url_for('main.create_activity_page', day_id=day.id) }}"
+          hx-post="{{ url_for('main.create_activity_page', day_id=day.id) }}"
+          hx-target="#activities-section" hx-swap="innerHTML"
+          class="mt-2 space-y-2">
+      <div class="grid grid-cols-2 gap-2">
+        <input name="name" placeholder="Activity name" required
+               class="bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent" />
+        <input name="location" placeholder="Location"
+               class="bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent" />
+      </div>
+      <textarea name="description" rows="2" placeholder="Description"
+                class="w-full bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent"></textarea>
+      <div class="grid grid-cols-3 gap-2">
+        <input name="price" type="number" step="0.01" placeholder="Price"
+               class="bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent" />
+        <input name="reservation_id" placeholder="Reservation"
+               class="bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent" />
+        <input name="link" type="url" placeholder="Link"
+               class="bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent" />
+      </div>
+      <input name="maps_link" type="url" placeholder="Maps link"
+             class="w-full bg-[#0d182b] border border-[#203354] rounded px-2 py-1.5 text-sm focus:outline-none focus:border-accent" />
+      <button type="submit"
+              class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition">
+        Add activity
+      </button>
+    </form>
+  </details>
+</div>

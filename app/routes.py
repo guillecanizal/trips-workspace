@@ -8,14 +8,14 @@ from io import BytesIO
 import json
 import re
 
-from flask import (Blueprint, abort, current_app, flash, jsonify, redirect,
-                   render_template, request, send_file, session as flask_session,
-                   stream_with_context, url_for)
+from flask import (Blueprint, abort, current_app, flash, jsonify, make_response,
+                   redirect, render_template, request, send_file,
+                   session as flask_session, stream_with_context, url_for)
 from sqlalchemy import select
 
 from .models import Activity, Day, GeneralItem, Trip
 from .services.ai import AIGenerationError, generate_itinerary, build_full_prompt_text, _extract_json_block, stream_itinerary_generation
-from .services.agent import clear_thread, hybrid_chat_stream
+from .services.agent import clear_thread, hybrid_chat_stream, suggest_day_tagline
 from .utils.maps import enrich_with_maps_links, build_itinerary_maps_url
 from .utils.csv_export import generate_trip_csv
 from .utils.pdf_export import generate_trip_pdf
@@ -305,10 +305,9 @@ def _pending_key(trip_id: int) -> str:
 
 
 @bp.route("/")
-def health_check() -> str:
-    """Simple greeting so we know the app is alive."""
-
-    return "Hello Trip Planner"
+def home():
+    """Redirect root to trip list."""
+    return redirect(url_for("main.list_trips_page"))
 
 
 # ---------------------------------------------------------------------------
@@ -660,7 +659,7 @@ def list_trips_page():
                 }
             )
 
-        return render_template("index.html", trip_summaries=trip_summaries)
+        return render_template("pages/trip_list.html", trip_summaries=trip_summaries)
     finally:
         session.close()
 
@@ -808,42 +807,141 @@ def view_trip_page(trip_id: int):
             trip.general_items,
             key=lambda item: ((item.name or "").lower(), item.id),
         )
-        total_distance_km = sum(
-            distance
-            for distance in (day.distance_km for day in ordered_days)
-            if distance is not None
-        )
-        total_activities = sum(len(day.activities) for day in ordered_days)
-        total_general_items = len(general_items)
-        total_price = sum(
-            value
-            for value in [
-                *(day.hotel_price for day in ordered_days),
-                *(
-                    activity.price
-                    for day in ordered_days
-                    for activity in day.activities
-                ),
-                *(item.price for item in general_items),
-            ]
-            if value is not None
-        )
-        ai_log = load_latest_ai_log(trip.id)
         stats = calculate_trip_stats(ordered_days, general_items)
+        ai_log = load_latest_ai_log(trip.id)
         manual_prompt = flask_session.pop("manual_ai_prompt", None)
-        prompt_text = manual_prompt or (ai_log["prompt"] if ai_log else "No prompt available yet.")
-        response_text = ai_log["response"] if ai_log else ""
+        prompt_text = manual_prompt or (ai_log["prompt"] if ai_log else "")
         return render_template(
-            "trip_detail.html",
+            "pages/trip_overview.html",
             trip=trip,
             days=ordered_days,
             general_items=general_items,
-            ai_log=ai_log,
             stats=stats,
-            show_ai_sidebar=request.args.get("show_ai") == "1",
             ai_prompt_text=prompt_text,
-            ai_response_text=response_text,
         )
+    finally:
+        session.close()
+
+
+@bp.get("/trips/<int:trip_id>/days/<int:day_id>")
+def view_day_page(trip_id: int, day_id: int):
+    session = get_session()
+    try:
+        day = session.get(Day, day_id)
+        if not day or day.trip_id != trip_id:
+            abort(404, "Day not found")
+        trip = day.trip
+        ordered_days = sorted(
+            trip.days,
+            key=lambda d: (d.date or date.max, d.id),
+        )
+        day_index = next(
+            (i + 1 for i, d in enumerate(ordered_days) if d.id == day_id), 0
+        )
+        return render_template(
+            "pages/day_detail.html",
+            trip=trip,
+            day=day,
+            day_index=day_index,
+            activities=day.activities,
+        )
+    finally:
+        session.close()
+
+
+# ---------------------------------------------------------------------------
+# HTMX Partials
+# ---------------------------------------------------------------------------
+
+
+@bp.get("/partials/trips/<int:trip_id>/overview")
+def partial_trip_overview(trip_id: int):
+    session = get_session()
+    try:
+        trip = session.get(Trip, trip_id)
+        if not trip:
+            abort(404, "Trip not found")
+        ordered_days = sorted(
+            trip.days, key=lambda d: (d.date or date.max, d.id)
+        )
+        general_items = sorted(
+            trip.general_items,
+            key=lambda item: ((item.name or "").lower(), item.id),
+        )
+        stats = calculate_trip_stats(ordered_days, general_items)
+        return render_template(
+            "partials/trip_overview_content.html",
+            trip=trip,
+            days=ordered_days,
+            general_items=general_items,
+            stats=stats,
+        )
+    finally:
+        session.close()
+
+
+@bp.get("/partials/days/<int:day_id>/hotel")
+def partial_day_hotel(day_id: int):
+    session = get_session()
+    try:
+        day = session.get(Day, day_id)
+        if not day:
+            abort(404, "Day not found")
+        return render_template("partials/day_hotel.html", day=day)
+    finally:
+        session.close()
+
+
+@bp.get("/partials/days/<int:day_id>/activities")
+def partial_day_activities(day_id: int):
+    session = get_session()
+    try:
+        day = session.get(Day, day_id)
+        if not day:
+            abort(404, "Day not found")
+        return render_template(
+            "partials/day_activities.html", day=day, activities=day.activities
+        )
+    finally:
+        session.close()
+
+
+@bp.get("/partials/trips/<int:trip_id>/general-items")
+def partial_general_items(trip_id: int):
+    session = get_session()
+    try:
+        trip = session.get(Trip, trip_id)
+        if not trip:
+            abort(404, "Trip not found")
+        general_items = sorted(
+            trip.general_items,
+            key=lambda item: ((item.name or "").lower(), item.id),
+        )
+        return render_template(
+            "partials/general_items.html",
+            trip=trip,
+            general_items=general_items,
+        )
+    finally:
+        session.close()
+
+
+@bp.get("/partials/trips/<int:trip_id>/kpis")
+def partial_kpis(trip_id: int):
+    session = get_session()
+    try:
+        trip = session.get(Trip, trip_id)
+        if not trip:
+            abort(404, "Trip not found")
+        ordered_days = sorted(
+            trip.days, key=lambda d: (d.date or date.max, d.id)
+        )
+        general_items = sorted(
+            trip.general_items,
+            key=lambda item: ((item.name or "").lower(), item.id),
+        )
+        stats = calculate_trip_stats(ordered_days, general_items)
+        return render_template("partials/kpis.html", trip=trip, stats=stats)
     finally:
         session.close()
 
@@ -934,9 +1032,15 @@ def agent_chat_stream():
     payload = request.get_json(silent=True) or {}
     trip_id = payload.get("trip_id")
     message = (payload.get("message") or "").strip()
+    day_id = payload.get("day_id")  # optional — scopes chat to a specific day
     if not trip_id or not message:
         return jsonify({"error": "trip_id and message are required"}), 400
-    thread_key = f"agent_thread_{trip_id}"
+
+    # Isolated thread key per trip or per day
+    if day_id:
+        thread_key = f"agent_thread_{trip_id}_day_{day_id}"
+    else:
+        thread_key = f"agent_thread_{trip_id}"
     thread_id = flask_session.get(thread_key)
     if not thread_id:
         import uuid
@@ -945,7 +1049,9 @@ def agent_chat_stream():
 
     def generate():
         try:
-            for event in hybrid_chat_stream(trip_id, message, thread_id=thread_id):
+            for event in hybrid_chat_stream(
+                trip_id, message, thread_id=thread_id, day_id=day_id
+            ):
                 yield f"data: {json.dumps(event)}\n\n"
         except Exception as exc:
             yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
@@ -956,10 +1062,32 @@ def agent_chat_stream():
 
 @bp.delete("/agent/history/<int:trip_id>")
 def clear_agent_history(trip_id: int):
-    thread_key = f"agent_thread_{trip_id}"
+    day_id = request.args.get("day_id", type=int)
+    if day_id:
+        thread_key = f"agent_thread_{trip_id}_day_{day_id}"
+    else:
+        thread_key = f"agent_thread_{trip_id}"
     thread_id = flask_session.pop(thread_key, None)
     if thread_id:
         clear_thread(thread_id)
+    return jsonify({"ok": True})
+
+
+@bp.get("/api/days/<int:day_id>/suggest-tagline")
+def suggest_tagline(day_id: int):
+    """Generate a tagline suggestion via LLM (called async from the day page)."""
+    tagline = suggest_day_tagline(day_id)
+    return jsonify({"tagline": tagline})
+
+
+@bp.post("/api/days/<int:day_id>/tagline")
+def save_tagline(day_id: int):
+    """Persist the tagline the user accepted."""
+    payload = request.get_json(silent=True) or {}
+    tagline = (payload.get("tagline") or "").strip()[:100]
+    if not tagline:
+        return jsonify({"error": "tagline required"}), 400
+    dal.update_day_tagline(day_id, tagline)
     return jsonify({"ok": True})
 
 
@@ -1247,6 +1375,16 @@ def create_general_item_page(trip_id: int):
         )
         session.add(item)
         session.commit()
+        if request.headers.get("HX-Request"):
+            general_items = sorted(
+                trip.general_items,
+                key=lambda gi: ((gi.name or "").lower(), gi.id),
+            )
+            return render_template(
+                "partials/general_items.html",
+                trip=trip,
+                general_items=general_items,
+            )
         return redirect(url_for("main.view_trip_page", trip_id=trip_id))
     finally:
         session.close()
@@ -1261,6 +1399,7 @@ def update_day_page(day_id: int):
             abort(404, "Day not found")
 
         day.date = parse_date(request.form.get("date"))
+        day.tagline = optional_str(request.form.get("tagline"))
         day.hotel_name = optional_str(request.form.get("hotel_name"))
         day.hotel_location = optional_str(request.form.get("hotel_location"))
         day.hotel_description = optional_str(request.form.get("hotel_description"))
@@ -1278,6 +1417,9 @@ def update_day_page(day_id: int):
         )
 
         session.commit()
+        if request.headers.get("HX-Request"):
+            session.refresh(day)
+            return render_template("partials/day_hotel.html", day=day)
         return redirect(url_for("main.view_trip_page", trip_id=day.trip_id))
     finally:
         session.close()
@@ -1302,6 +1444,17 @@ def update_general_item_page(item_id: int):
         item.cancelable = parse_bool(request.form.get("cancelable"))
 
         session.commit()
+        if request.headers.get("HX-Request"):
+            trip = item.trip
+            general_items = sorted(
+                trip.general_items,
+                key=lambda gi: ((gi.name or "").lower(), gi.id),
+            )
+            return render_template(
+                "partials/general_items.html",
+                trip=trip,
+                general_items=general_items,
+            )
         return redirect(url_for("main.view_trip_page", trip_id=item.trip_id))
     finally:
         session.close()
@@ -1317,6 +1470,12 @@ def delete_day_page(day_id: int):
         trip_id = day.trip_id
         session.delete(day)
         session.commit()
+        if request.headers.get("HX-Request"):
+            resp = make_response("")
+            resp.headers["HX-Redirect"] = url_for(
+                "main.view_trip_page", trip_id=trip_id
+            )
+            return resp
         return redirect(url_for("main.view_trip_page", trip_id=trip_id))
     finally:
         session.close()
@@ -1330,8 +1489,19 @@ def delete_general_item_page(item_id: int):
         if not item:
             abort(404, "Item not found")
         trip_id = item.trip_id
+        trip = item.trip
         session.delete(item)
         session.commit()
+        if request.headers.get("HX-Request"):
+            general_items = sorted(
+                trip.general_items,
+                key=lambda gi: ((gi.name or "").lower(), gi.id),
+            )
+            return render_template(
+                "partials/general_items.html",
+                trip=trip,
+                general_items=general_items,
+            )
         return redirect(url_for("main.view_trip_page", trip_id=trip_id))
     finally:
         session.close()
@@ -1362,6 +1532,11 @@ def create_activity_page(day_id: int):
         )
         session.add(activity)
         session.commit()
+        if request.headers.get("HX-Request"):
+            session.refresh(day)
+            return render_template(
+                "partials/day_activities.html", day=day, activities=day.activities
+            )
         return redirect(url_for("main.view_trip_page", trip_id=day.trip_id))
     finally:
         session.close()
@@ -1387,6 +1562,12 @@ def update_activity_page(activity_id: int):
         activity.cancelable = parse_bool(request.form.get("cancelable"))
 
         session.commit()
+        if request.headers.get("HX-Request"):
+            day = activity.day
+            session.refresh(day)
+            return render_template(
+                "partials/day_activities.html", day=day, activities=day.activities
+            )
         return redirect(url_for("main.view_trip_page", trip_id=activity.day.trip_id))
     finally:
         session.close()
@@ -1400,8 +1581,14 @@ def delete_activity_page(activity_id: int):
         if not activity:
             abort(404, "Activity not found")
         trip_id = activity.day.trip_id
+        day = activity.day
         session.delete(activity)
         session.commit()
+        if request.headers.get("HX-Request"):
+            session.refresh(day)
+            return render_template(
+                "partials/day_activities.html", day=day, activities=day.activities
+            )
         return redirect(url_for("main.view_trip_page", trip_id=trip_id))
     finally:
         session.close()
@@ -1424,13 +1611,18 @@ def itinerary_maps_url(trip_id: int):
                         "name": day.hotel_name,
                         "location": day.hotel_location,
                     },
+                    "activities": [
+                        {"name": a.name, "location": a.location}
+                        for a in day.activities
+                        if a.location
+                    ],
                 }
                 for day in ordered_days
             ]
         }
         maps_url = build_itinerary_maps_url(payload_like)
         if not maps_url:
-            return jsonify({"url": None, "error": "Insufficient hotel data"}), 404
+            return jsonify({"url": None, "error": "Need at least 2 days with a location (hotel or activity)"}), 404
         return jsonify({"url": maps_url})
     finally:
         session.close()

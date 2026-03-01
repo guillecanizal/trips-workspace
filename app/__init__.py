@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import timedelta
 from pathlib import Path
 from typing import Any, Dict
 
@@ -36,5 +37,8 @@ def create_app(test_config: Dict[str, Any] | None = None) -> Flask:
     from .routes import bp as main_bp
 
     app.register_blueprint(main_bp)
+
+    # Make timedelta available in all Jinja2 templates
+    app.jinja_env.globals["timedelta"] = timedelta
 
     return app

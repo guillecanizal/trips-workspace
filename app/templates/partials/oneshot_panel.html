@@ -1,0 +1,83 @@
+<details x-data="oneshotPanel({{ trip.id }})" class="rounded-xl bg-surface-light border border-border" hx-disable>
+  <summary class="px-5 py-3 cursor-pointer font-semibold text-sm select-none flex justify-between items-center">
+    <span>AI Generation</span>
+    <span class="text-xs text-slate-500">One-shot &amp; External JSON</span>
+  </summary>
+  <div class="px-5 pb-4 border-t border-border pt-3 space-y-4">
+
+    {# ── Actions row ── #}
+    <div class="flex flex-wrap gap-2">
+      <button type="button" @click="generatePrompt()"
+              class="text-xs border border-slate-600 hover:border-slate-400 text-slate-300 px-3 py-1.5 rounded-full transition">
+        Generate prompt
+      </button>
+      <button type="button" @click="generateStream()" :disabled="streaming"
+              class="text-xs border border-blue-600 hover:border-blue-400 text-blue-300 px-3 py-1.5 rounded-full transition disabled:opacity-50">
+        <span x-show="!streaming">Generate &amp; stream</span>
+        <span x-show="streaming">Generating...</span>
+      </button>
+    </div>
+
+    {# ── Prompt area ── #}
+    {% if ai_prompt_text %}
+    <div>
+      <div class="flex items-center justify-between mb-1">
+        <label class="text-xs text-slate-500">Latest prompt</label>
+        <button type="button" @click="copyPrompt()" class="text-xs text-slate-400 hover:text-slate-200">
+          <span x-show="!promptCopied">Copy</span>
+          <span x-show="promptCopied" x-cloak>Copied!</span>
+        </button>
+      </div>
+      <textarea x-ref="promptArea" readonly rows="6"
+                class="w-full bg-[#0d182b] border border-[#203354] rounded-lg px-3 py-2 text-xs font-mono text-slate-300 resize-y focus:outline-none">{{ ai_prompt_text }}</textarea>
+    </div>
+    {% endif %}
+
+    {# ── Streaming console ── #}
+    <div x-show="streamOutput" x-cloak>
+      <label class="text-xs text-slate-500 mb-1 block">Generation log</label>
+      <pre x-text="streamOutput"
+           class="bg-[#1a1a2e] rounded-lg p-3 text-xs font-mono text-slate-300 max-h-64 overflow-y-auto whitespace-pre-wrap"></pre>
+    </div>
+
+    {# ── Preview ── #}
+    <div x-show="showPreview" x-cloak>
+      <label class="text-xs text-slate-500 mb-1 block">Preview</label>
+      <div class="bg-surface rounded-lg border border-border p-3" x-html="previewHtml"></div>
+    </div>
+
+    {# ── Apply generated JSON ── #}
+    <div x-show="showApply && generatedJson" x-cloak class="flex gap-2">
+      <button type="button" @click="applyJson(generatedJson)"
+              class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition">
+        Apply itinerary
+      </button>
+    </div>
+
+    {# ── External JSON paste ── #}
+    <details class="mt-2">
+      <summary class="text-xs text-blue-400 hover:text-blue-300 cursor-pointer select-none">
+        Apply external JSON
+      </summary>
+      <div class="mt-2 space-y-2">
+        <p class="text-xs text-slate-500">Paste a JSON response from ChatGPT, Claude, etc.</p>
+        <textarea x-model="pasteJson" rows="8"
+                  placeholder='{"days": [...], "general_items": [...]}'
+                  class="w-full bg-[#0d182b] border border-[#203354] rounded-lg px-3 py-2 text-xs font-mono text-slate-300 resize-y focus:outline-none focus:border-accent"></textarea>
+        <div x-show="pasteError" x-cloak class="text-xs text-red-400" x-text="pasteError"></div>
+        <div class="flex gap-2">
+          <button type="button" @click="previewPaste()"
+                  class="text-xs border border-slate-600 hover:border-slate-400 text-slate-300 px-3 py-1.5 rounded-full transition">
+            Preview
+          </button>
+          <button type="button" x-show="showApply && generatedJson === pasteJson.trim()" x-cloak
+                  @click="applyJson(pasteJson.trim())"
+                  class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition">
+            Apply itinerary
+          </button>
+        </div>
+      </div>
+    </details>
+
+  </div>
+</details>
