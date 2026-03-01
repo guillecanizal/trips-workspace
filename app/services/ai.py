@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 import os
 import re
+from collections.abc import Callable, Generator
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any
 
 try:
     from langchain_ollama import ChatOllama
@@ -19,7 +20,7 @@ class AIGenerationError(RuntimeError):
     """Raised when the LLM could not generate a usable response."""
 
 
-def _ensure_logs_dir(trip_id: int, base_path: Optional[Path] = None) -> Path:
+def _ensure_logs_dir(trip_id: int, base_path: Path | None = None) -> Path:
     root = base_path or Path("logs")
     path = root / f"trip_{trip_id}"
     path.mkdir(parents=True, exist_ok=True)
@@ -102,9 +103,9 @@ def _build_messages(prompt: str) -> list[dict[str, str]]:
             "- Always include hotel 'location' and 'description' fields.",
             "- Always include an activity 'location' indicating the city/town or neighborhood.",
             "- Change hotels ONLY when the itinerary moves between different cities or regions.",
-            "- When the trip involves multiple locations by car, ensure each next location is within approximately 200–300 km from the previous one.",
+            "- When the trip involves multiple locations by car, ensure each next location is within approximately 200-300 km from the previous one.",
             "- Activities must be unique, relevant, and family-friendly if context suggests children are included.",
-            "- Always provide at least 2–3 thoughtful activities per day.",
+            "- Always provide at least 2-3 thoughtful activities per day.",
             "- Populate every provided field; use null when data is unknown.",
             "- Add realistic drive summaries per day via distance_km / distance_hours / distance_minutes when applicable.",
             "- Include hotel pricing/cancelation info when available, and add basic cost estimates for activities or logistics.",
@@ -162,10 +163,10 @@ def generate_itinerary(
     description: str | None,
     days: list[date],
     *,
-    model: Optional[str] = None,
-    client_factory: Optional[Callable[[], Any]] = None,
-    logs_dir: Optional[Path] = None,
-) -> Tuple[Dict[str, Any], Path]:
+    model: str | None = None,
+    client_factory: Callable[[], Any] | None = None,
+    logs_dir: Path | None = None,
+) -> tuple[dict[str, Any], Path]:
     if ChatOllama is None:
         raise AIGenerationError(
             "langchain_ollama is not installed. Install it to enable AI generation."
@@ -222,26 +223,26 @@ def stream_itinerary_generation(
     trip_name: str,
     description: str | None,
     days: list[date],  # dates
-):
+) -> Generator[Any, None, None]:
     """
     Generator that yields chunks of text from the LLM.
     Use this to stream the 'Reasoning' + 'JSON' to the frontend.
     """
-    
+
     user_prompt = build_trip_prompt(trip_name, description, days)
     msgs_dicts = _build_messages(user_prompt)
-    
+
     # Needs to construct langchain messages manually since _build_messages returns dicts
-    from langchain_core.messages import SystemMessage, HumanMessage
-    
+    from langchain_core.messages import HumanMessage, SystemMessage
+
     messages = [
         SystemMessage(content=msgs_dicts[0]["content"]),
         HumanMessage(content=msgs_dicts[1]["content"])
     ]
-    
+
     model_name = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")
     chat = ChatOllama(model=model_name, temperature=0)
-    
+
     # Stream the tokens
     for chunk in chat.stream(messages):
         yield chunk.content

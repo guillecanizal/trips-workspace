@@ -3,19 +3,19 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any, Dict
+from typing import Any
 
 from flask import current_app
 
 from .models import Activity, Day, GeneralItem, Trip
 
 
-def _get_session():
+def _get_session() -> Any:
     Session = current_app.session_factory  # type: ignore[attr-defined]
     return Session()
 
 
-def _serialize_activity(activity: Activity) -> Dict[str, Any]:
+def _serialize_activity(activity: Activity) -> dict[str, Any]:
     return {
         "id": activity.id,
         "name": activity.name,
@@ -29,7 +29,7 @@ def _serialize_activity(activity: Activity) -> Dict[str, Any]:
     }
 
 
-def _serialize_day(day: Day) -> Dict[str, Any]:
+def _serialize_day(day: Day) -> dict[str, Any]:
     return {
         "id": day.id,
         "date": day.date.isoformat() if day.date else None,
@@ -48,7 +48,7 @@ def _serialize_day(day: Day) -> Dict[str, Any]:
     }
 
 
-def get_trip_compact(trip_id: int) -> Dict[str, Any]:
+def get_trip_compact(trip_id: int) -> dict[str, Any]:
     session = _get_session()
     try:
         trip = session.get(Trip, trip_id)
@@ -83,7 +83,7 @@ def update_day_tagline(day_id: int, tagline: str) -> None:
         session.close()
 
 
-def get_day_compact(day_id: int) -> Dict[str, Any]:
+def get_day_compact(day_id: int) -> dict[str, Any]:
     """Return a day with activities, trip context, and 1-based day_index."""
     session = _get_session()
     try:
@@ -117,7 +117,7 @@ def _get_day_by_date(trip: Trip, day_iso: str) -> Day:
     raise ValueError("Day not found for given date")
 
 
-def apply_hotel(trip_id: int, day: str, hotel: Dict[str, Any]) -> Dict[str, Any]:
+def apply_hotel(trip_id: int, day: str, hotel: dict[str, Any]) -> dict[str, Any]:
     session = _get_session()
     try:
         trip = session.get(Trip, trip_id)
@@ -141,7 +141,7 @@ def apply_hotel(trip_id: int, day: str, hotel: Dict[str, Any]) -> Dict[str, Any]
         session.close()
 
 
-def apply_activity(trip_id: int, day: str, activity: Dict[str, Any]) -> Dict[str, Any]:
+def apply_activity(trip_id: int, day: str, activity: dict[str, Any]) -> dict[str, Any]:
     session = _get_session()
     try:
         trip = session.get(Trip, trip_id)
@@ -180,7 +180,7 @@ def update_knowledge_general(trip_id: int, text: str) -> None:
         session.close()
 
 
-def get_trip_cost_summary(trip_id: int) -> Dict[str, Any]:
+def get_trip_cost_summary(trip_id: int) -> dict[str, Any]:
     """Aggregate prices across hotels, activities and general items."""
     session = _get_session()
     try:
@@ -191,7 +191,7 @@ def get_trip_cost_summary(trip_id: int) -> Dict[str, Any]:
             trip.days,
             key=lambda d: (d.date or date.max, d.id),
         )
-        days_breakdown: list[Dict[str, Any]] = []
+        days_breakdown: list[dict[str, Any]] = []
         total_hotels = 0.0
         total_activities = 0.0
         for day in ordered_days:

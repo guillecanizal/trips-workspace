@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import urllib.parse
-from typing import Any, Dict
+from typing import Any
 
 
 def maps_search_url(name: str | None, location: str | None) -> str | None:
@@ -14,7 +14,7 @@ def maps_search_url(name: str | None, location: str | None) -> str | None:
     return "https://www.google.com/maps/search/?api=1&query=" + urllib.parse.quote(query)
 
 
-def enrich_with_maps_links(payload: Dict[str, Any]) -> Dict[str, Any]:
+def enrich_with_maps_links(payload: dict[str, Any]) -> dict[str, Any]:
     """Add maps_link fields to hotels/activities within the LLM payload."""
     if not isinstance(payload, dict):
         return payload
@@ -51,7 +51,7 @@ def _clean_point(name: str | None, location: str | None) -> str | None:
     return f"{name}, {location}" if name else location
 
 
-def build_itinerary_maps_url(data: Dict[str, Any]) -> str | None:
+def build_itinerary_maps_url(data: dict[str, Any]) -> str | None:
     """Return a Maps Directions URL using hotel locations, falling back to activity locations."""
     if not isinstance(data, dict):
         return None

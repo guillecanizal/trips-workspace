@@ -1,17 +1,17 @@
 """CSV export functions for trip planner."""
 
+from __future__ import annotations
+
 import csv
-from io import StringIO, BytesIO
-from datetime import date
-import re
-from flask import send_file, abort, flash
+from io import StringIO
+from typing import Any
 
 
-def generate_trip_csv(trip, ordered_days, general_items, stats):
+def generate_trip_csv(trip: Any, ordered_days: Any, general_items: Any, stats: Any) -> str:
     """Generate CSV content for a trip."""
     output = StringIO()
     writer = csv.writer(output)
-    
+
     # Trip header
     writer.writerow(["Trip Name", trip.name])
     writer.writerow(["Description", trip.description or ""])
@@ -22,7 +22,7 @@ def generate_trip_csv(trip, ordered_days, general_items, stats):
     writer.writerow(["Total Distance (km)", stats['total_distance_km'] or 0])
     writer.writerow(["Total Cost", f"{stats['total_price'] or 0:.2f}"])
     writer.writerow([])  # Blank row
-    
+
     # General Items section
     writer.writerow(["GENERAL ITEMS"])
     writer.writerow(["Name", "Description", "Reservation ID", "Price", "Link", "Maps Link", "Cancelable"])
@@ -37,14 +37,14 @@ def generate_trip_csv(trip, ordered_days, general_items, stats):
             item.cancelable if item.cancelable is not None else ""
         ])
     writer.writerow([])  # Blank row
-    
+
     # Days and Activities section
     writer.writerow(["ITINERARY"])
     writer.writerow(["Day", "Date", "Type", "Name", "Location", "Description", "Price", "Reservation ID", "Link", "Maps Link", "Cancelable", "Distance (km)", "Travel Time"])
-    
+
     for index, day in enumerate(ordered_days, start=1):
         day_date = day.date.isoformat() if day.date else "Unscheduled"
-        
+
         # Add hotel as first "activity" for the day
         if day.hotel_name:
             travel_time = ""
@@ -52,7 +52,7 @@ def generate_trip_csv(trip, ordered_days, general_items, stats):
                 hours = day.distance_hours or 0
                 minutes = day.distance_minutes or 0
                 travel_time = f"{hours}h {minutes}m"
-            
+
             writer.writerow([
                 index,
                 day_date,
@@ -68,7 +68,7 @@ def generate_trip_csv(trip, ordered_days, general_items, stats):
                 day.distance_km or "",
                 travel_time
             ])
-        
+
         # Add activities for the day
         for activity in day.activities:
             writer.writerow([
@@ -86,5 +86,5 @@ def generate_trip_csv(trip, ordered_days, general_items, stats):
                 "",  # Distance only on hotel row
                 ""   # Travel time only on hotel row
             ])
-    
+
     return output.getvalue()

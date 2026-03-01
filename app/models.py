@@ -20,10 +20,10 @@ class Trip(Base):
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     knowledge_general: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    days: Mapped[list["Day"]] = relationship(
+    days: Mapped[list[Day]] = relationship(
         "Day", back_populates="trip", cascade="all, delete-orphan"
     )
-    general_items: Mapped[list["GeneralItem"]] = relationship(
+    general_items: Mapped[list[GeneralItem]] = relationship(
         "GeneralItem", back_populates="trip", cascade="all, delete-orphan"
     )
 
@@ -62,7 +62,7 @@ class Day(Base):
     distance_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     trip: Mapped[Trip] = relationship("Trip", back_populates="days")
-    activities: Mapped[list["Activity"]] = relationship(
+    activities: Mapped[list[Activity]] = relationship(
         "Activity", back_populates="day", cascade="all, delete-orphan"
     )
 

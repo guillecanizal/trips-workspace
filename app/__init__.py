@@ -5,14 +5,14 @@ from __future__ import annotations
 import os
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from flask import Flask
 
 from .database import create_session_factory, init_db, init_engine
 
 
-def create_app(test_config: Dict[str, Any] | None = None) -> Flask:
+def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     """Create and configure the Flask application."""
 
     app = Flask(__name__)

@@ -2,26 +2,41 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
-from pathlib import Path
-from io import BytesIO
 import json
 import re
+from datetime import date, timedelta
+from io import BytesIO
+from pathlib import Path
 
-from flask import (Blueprint, abort, current_app, flash, jsonify, make_response,
-                   redirect, render_template, request, send_file,
-                   session as flask_session, stream_with_context, url_for)
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    flash,
+    jsonify,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    stream_with_context,
+    url_for,
+)
+from flask import session as flask_session
 from sqlalchemy import select
 
-from .models import Activity, Day, GeneralItem, Trip
-from .services.ai import AIGenerationError, generate_itinerary, build_full_prompt_text, _extract_json_block, stream_itinerary_generation
-from .services.agent import clear_thread, hybrid_chat_stream, suggest_day_tagline
-from .utils.maps import enrich_with_maps_links, build_itinerary_maps_url
-from .utils.csv_export import generate_trip_csv
-from .utils.pdf_export import generate_trip_pdf
 from . import dal
-
-
+from .models import Activity, Day, GeneralItem, Trip
+from .services.agent import clear_thread, hybrid_chat_stream, suggest_day_tagline
+from .services.ai import (
+    AIGenerationError,
+    build_full_prompt_text,
+    generate_itinerary,
+    stream_itinerary_generation,
+)
+from .utils.csv_export import generate_trip_csv
+from .utils.maps import build_itinerary_maps_url, enrich_with_maps_links
+from .utils.pdf_export import generate_trip_pdf
 
 bp = Blueprint("main", __name__)
 
@@ -954,7 +969,7 @@ def export_trip_pdf(trip_id: int):
         trip = session.get(Trip, trip_id)
         if not trip:
             abort(404, "Trip not found")
-        
+
         ordered_days = sorted(
             trip.days,
             key=lambda d: (d.date or date.max, d.id),
@@ -967,14 +982,14 @@ def export_trip_pdf(trip_id: int):
 
         # Generate PDF content using utility module
         pdf_bytes = generate_trip_pdf(trip, ordered_days, general_items, stats)
-        
+
         # Prepare file for download
         buffer = BytesIO(pdf_bytes)
-        
+
         base_name = (trip.name or "trip").strip().lower()
         base_name = re.sub(r"[^a-z0-9]+", "-", base_name) or "trip"
         filename = f"{base_name}-guide.pdf"
-        
+
         return send_file(
             buffer,
             mimetype="application/pdf",
@@ -993,7 +1008,7 @@ def export_trip_csv(trip_id: int):
         trip = session.get(Trip, trip_id)
         if not trip:
             abort(404, "Trip not found")
-        
+
         ordered_days = sorted(
             trip.days,
             key=lambda d: (d.date or date.max, d.id),
@@ -1003,17 +1018,17 @@ def export_trip_csv(trip_id: int):
             key=lambda item: ((item.name or "").lower(), item.id),
         )
         stats = calculate_trip_stats(ordered_days, general_items)
-        
+
         # Generate CSV content
         csv_content = generate_trip_csv(trip, ordered_days, general_items, stats)
-        
+
         # Prepare file for download
         buffer = BytesIO(csv_content.encode('utf-8-sig'))  # UTF-8 with BOM for Excel compatibility
-        
+
         base_name = (trip.name or "trip").strip().lower()
         base_name = re.sub(r"[^a-z0-9]+", "-", base_name) or "trip"
         filename = f"{base_name}-export.csv"
-        
+
         return send_file(
             buffer,
             mimetype="text/csv",
@@ -1216,7 +1231,7 @@ def generate_trip_stream(trip_id: int):
         trip = session.get(Trip, trip_id)
         if not trip:
             abort(404, "Trip not found")
-        
+
         # Sort days to ensure order
         days_list = sorted(trip.days, key=lambda d: (d.date or date.max))
         trips_dates = [d.date for d in days_list if d.date]
@@ -1233,7 +1248,7 @@ def generate_trip_stream(trip_id: int):
                     # Send chunk as a JSON object in an SSE event
                     payload = json.dumps({"chunk": chunk})
                     yield f"data: {payload}\n\n"
-                
+
                 # Signal completion
                 yield "data: [DONE]\n\n"
             except Exception as e:

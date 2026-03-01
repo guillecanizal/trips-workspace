@@ -1,147 +1,108 @@
 # Trip Planner
 
-This is a Flask-based web application for planning trips. It allows users to create and manage detailed travel itineraries, with optional AI-powered features for generating and refining plans.
+A personal AI travel planning workspace. Plan complete trips day by day — hotels, activities, costs, and logistics — with an AI copilot that suggests, never decides.
 
-## Functional Explanation
+Runs entirely on your machine. No account, no subscription, no data leaving your device.
 
-The application provides a comprehensive solution for trip planning:
+---
 
-- **Trip Management**: Create, update, and delete trips, each with a name, description, and date range.
-- **Daily Itinerary**: Each trip is broken down into individual days. For each day, you can specify hotel details, travel distances, and a list of activities.
-- **Activity Planning**: Add multiple activities to any day, including details like location, price, and reservation information.
-- **General Items**: Keep track of non-daily items like flights, car rentals, or travel insurance.
-- **AI Itinerary Generation**: Automatically generate a complete, detailed itinerary for a trip based on its name and dates. The AI suggests hotels, activities, and travel details.
-- **External JSON Apply**: Already have an itinerary JSON from an external LLM (ChatGPT, Claude…)? Paste it directly in the "Full trip" panel, preview it, and apply it with one click — no need to re-generate locally.
-- **Interactive AI Agent**: Chat with an AI agent to get suggestions, add activities or hotels, review your budget, or get a narrative summary of any day. Conversation history is preserved per trip across page reloads.
-- **Export Options**: Export trip itineraries to PDF or CSV format for offline use, printing, or importing into spreadsheet applications.
-- **Google Maps Integration**: Automatically enriches locations with Google Maps links for easy navigation.
+## What it does
 
-### ⚡️ Streaming AI Generation ("Generate Proposal")
-- **Real-time Reasoning**: The AI "thinks" out loud, showing its reasoning process in a streaming console before producing the final JSON.
-- **Itinerary Preview**: After generation, a summary card view shows days and activities before you commit to applying.
-- **Interactive Proposal**: Click "Apply itinerary" to save the proposal to your trip, or expand "Show raw JSON" to inspect the full output.
-- **External JSON**: Alternatively, use the "📥 Apply external JSON" section to paste a JSON from any external LLM and apply it directly.
-- **LangChain & Server-Sent Events**: Uses modern streaming standards to provide a responsive user experience without long loading times.
+Trip Planner gives you a structured workspace to build and manage travel itineraries. For each trip you define the dates and a rough idea; the app organises everything else into a day-by-day view.
 
-### 💬 AI Chat (Incremental Edits)
-- **Streaming responses**: The chat assistant uses SSE streaming with an animated typing indicator, so you see answers as they arrive.
-- **Cancel mid-stream**: A "Cancel" button replaces "Send" during generation so you can stop a long response instantly.
-- **Persistent conversation history**: Each trip keeps its own conversation thread using LangGraph's `MemorySaver`. Use "New chat" to reset.
-- **Budget estimation**: Ask things like *"¿Cuánto cuesta este viaje?"* and the agent summarises total hotel, activity, and general item costs.
-- **Trip narrative**: Ask for a *"resumen"* and the agent produces a prose itinerary overview of all days.
-- **Structured candidates**: Hotel and activity proposals are generated via Pydantic-validated structured output for reliable formatting.
+**For each day you can record:**
+- Where you're staying (hotel name, location, price, reservation ID, cancellation policy)
+- What you're doing (activities with location, duration, price, booking links)
+- How far you're driving (distance and travel time to the next stop)
 
-## Privacy & Local-First
+**Across the whole trip:**
+- General items not tied to a specific day — flights, insurance, rail passes
+- A live budget breakdown: hotels, activities, general items, grand total
+- A calendar grid that shows the whole trip at a glance
+- PDF and CSV export for offline use or sharing
 
-**Your Data Stays With You.**
+---
 
-This application is designed to be run entirely on your local machine.
+## The AI copilot
 
-- **Offline Capable**: The core application, including the database and AI features, functions without an internet connection (Google Maps links obviously require internet).
-- **No Data Sharing**: Your travel plans, personal notes, and preferences are stored locally in a SQLite database (`instance/trips.db`). Nothing is sent to the cloud.
-- **Local AI**: The AI features use [Ollama](https://ollama.com/) to run Large Language Models directly on your hardware. Your prompts and the AI's responses never leave your computer.
+The AI is optional and assistive. It never books anything, never overwrites your data without you applying the change.
 
-## Architecture
+**Two ways to use it:**
 
-The system follows a standard MVC-like pattern with Flask. It integrates with a local LLM via Ollama for AI features.
+1. **Generate a full itinerary** — describe your trip and the AI proposes a complete day-by-day plan with hotels, activities, and driving estimates. You preview it and apply it with one click.
 
-```mermaid
-graph TD
-    User(("User")) -->|Browser| Web["Flask Web App"]
-    
-    subgraph Backend ["Backend (app/)"]
-        Web -->|Routes| Routes["routes.py"]
-        Routes -->|ORM| Models["models.py"]
-        Routes -->|Helpers| DAL["dal.py"]
-        Routes -->|Templates| Views["templates/"]
-        Routes -->|Chat| Agent["agent.py"]
-        Routes -->|Generate| AIGen["ai.py"]
-    end
-    
-    subgraph External ["Data & External"]
-        Models <-->|SQLAlchemy| DB[("SQLite DB")]
-        Agent -->|LangGraph| Ollama["Ollama (Local LLM)"]
-        AIGen -->|LangChain| Ollama
-    end
+2. **Chat with the AI** — ask questions or request specific suggestions. The chat panel is always visible at the bottom of every page.
+
+   - *"Suggest activities for day 3"* — returns a list of options you can apply one by one
+   - *"Find hotels in Seville for Friday"* — hotel candidates with details
+   - *"How much is this trip costing?"* — live budget breakdown from your actual data
+   - *"Summarise the trip for me"* — a narrative description of the itinerary
+   - *"What's the weather like in Kyoto in April?"* — conversational answers without tool calls
+
+The AI learns destination context as you chat and reuses it in future responses.
+
+---
+
+## Open by design
+
+Trip Planner does not try to own your data or lock you into its ecosystem.
+
+- Every hotel and activity has fields for your own **reservation IDs and booking links** — paste links from Booking.com, Airbnb, GetYourGuide, or anywhere else
+- **Import JSON from any AI** — generate an itinerary in ChatGPT or Claude, paste the JSON into the import panel, preview it, and apply it
+- **Export to PDF or CSV** at any time — the data is yours
+- **Google Maps links** are generated automatically for hotels and activities, and a full directions URL is built for the whole route
+
+---
+
+## Philosophy
+
+- **Private by default.** No cloud. No analytics. No third-party services. The AI runs locally via [Ollama](https://ollama.com).
+- **No social features.** No sharing, comments, or followers.
+- **No marketplace.** The app will never show ads, promoted hotels, or affiliate links.
+- **Works without AI.** The AI features are additive. The app is fully functional as a plain itinerary organiser if Ollama is not installed.
+- **Minimal and fast.** The goal is to go from trip idea to a complete, costed plan in minutes.
+
+---
+
+## Getting started
+
+**Requirements:**
+- Python 3.10+
+- [Ollama](https://ollama.com) (optional, for AI features)
+
+```bash
+pip install -r requirements.txt
+python run.py
 ```
 
-## How to Execute the Code
+Open http://127.0.0.1:5000 in your browser.
 
-1.  **Install Dependencies**:
-    Ensure Python 3 is installed. Install packages from `requirements.txt`:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-2.  **Set up AI Model (Optional)**:
-    This project uses [Ollama](https://ollama.com/) for local AI.
-    - Install Ollama.
-    - Pull the default model:
-      ```bash
-      ollama pull gemma2:9b
-      ```
-
-3.  **Run the Application**:
-    Start the Flask development server:
-    ```bash
-    python run.py
-    ```
-    The app will be available at `http://127.0.0.1:5000`.
-
-## Configuration
-
-The application can be configured using environment variables.
-
-| Variable | Default | Description |
-| :--- | :--- | :--- |
-| `DATABASE_URL` | `sqlite:///instance/trip_planner.db` | Connection string for the database (SQLAlchemy format). |
-| `SECRET_KEY` | `dev-secret-key` | Secret key for Flask session security. Change this in production. |
-| `OLLAMA_MODEL` | `gemma2:9b` | The Ollama model for AI features. **Recommended models**: `qwen2.5:14b` (best quality, requires 16GB+ RAM), `gemma2:9b` (balanced, good default), `llama3.1:8b` (fastest). |
-
-## Code Structure
-
-```text
-/
-├── .gitignore             # Git ignore rules
-├── LICENSE                # Project license
-├── README.md              # Project documentation
-├── requirements.txt       # Python dependencies
-├── run.py                 # Application entry point
-├── app/                   # Main application package
-│   ├── __init__.py        # App factory
-│   ├── dal.py             # Data Access Layer helpers
-│   ├── database.py        # Database connection setup
-│   ├── models.py          # SQLAlchemy database models
-│   ├── routes.py          # Flask routes & controllers
-│   ├── services/          # AI Service logic
-│   │   ├── agent.py       # Interactive AI agent (LangGraph)
-│   │   └── ai.py          # Itinerary generator (LangChain)
-│   ├── templates/         # Jinja2 HTML templates
-│   └── utils/             # Utility modules
-│       ├── csv_export.py  # CSV export generation
-│       ├── pdf_export.py  # PDF export generation
-│       └── maps.py        # Google Maps link enrichment
-├── instance/              # Instance-specific data (SQLite db)
-└── logs/                  # Logs for AI interactions
+**To enable AI features**, install Ollama and pull a model:
+```bash
+ollama pull qwen2.5:7b
 ```
 
-## Database Schema
+The app starts fine without Ollama — AI features activate automatically once a model is available.
 
-The database uses SQLite by default with SQLAlchemy ORM.
+---
 
-- **`Trip`**: The root entity.
-    - Has `name`, `description`, `start_date`, `end_date`.
-    - Relationships: `days` (One-to-Many), `general_items` (One-to-Many).
-- **`Day`**: Represents a single day in a trip.
-    - Has detailed hotel info (`hotel_name`, `hotel_location`, `hotel_price`, etc.) and travel info (`distance_km`).
-    - Relationships: `trip` (Many-to-One), `activities` (One-to-Many).
-- **`Activity`**: A specific activity within a day.
-    - Has `name`, `description`, `location`, `price`, `reservation_id`.
-    - Relationships: `day` (Many-to-One).
-- **`GeneralItem`**: Non-daily items (e.g., flights, insurance).
-    - Has `name`, `description`, `price`, `reservation_id`.
-    - Relationships: `trip` (Many-to-One).
+## Recommended models
 
-## Special Instruction for AI Agents
+| Model | RAM needed | Notes |
+|-------|-----------|-------|
+| `qwen2.5:14b` | 16 GB+ | Best itinerary quality |
+| `gemma2:9b` | 10 GB+ | Good balance |
+| `qwen2.5:7b` | 6 GB+ | Default, works well |
+| `llama3.1:8b` | 8 GB+ | Fast responses |
 
-If you are an AI assistant (Claude, Cursor, etc.) working on this project, please refer to [AGENTS.md](./AGENTS.md) for critical technical context, coding guidelines, and the strict offline-first privacy policy.
+Override the default with `OLLAMA_MODEL=gemma2:9b python run.py`.
+
+---
+
+## License
+
+Apache 2.0
+
+---
+
+*For architecture, engineering decisions, and API reference see [TECHNICAL.md](TECHNICAL.md).*

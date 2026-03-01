@@ -1,4 +1,4 @@
-"""PDF export – classic professional business style."""
+"""PDF export - classic professional business style."""
 
 from __future__ import annotations
 
@@ -6,10 +6,11 @@ from io import BytesIO
 from typing import Any
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
+from reportlab.pdfgen.canvas import Canvas as _RLCanvas
 from reportlab.platypus import (
     HRFlowable,
     KeepTogether,
@@ -19,7 +20,6 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
-from reportlab.pdfgen.canvas import Canvas as _RLCanvas
 
 # ---------------------------------------------------------------------------
 # Classic Business Palette (Traditional & Sober)

@@ -15,7 +15,7 @@ def init_engine(database_url: str) -> Engine:
     return create_engine(database_url, echo=False, future=True)
 
 
-def create_session_factory(engine: Engine):
+def create_session_factory(engine: Engine) -> scoped_session:
     """Return a scoped session factory bound to the engine."""
 
     return scoped_session(
