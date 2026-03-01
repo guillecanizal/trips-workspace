@@ -1106,6 +1106,49 @@ def save_tagline(day_id: int):
     return jsonify({"ok": True})
 
 
+@bp.post("/api/trips/<int:trip_id>/generate-taglines")
+def generate_all_taglines(trip_id: int):
+    """SSE endpoint — generate and save a tagline for every day that has content."""
+
+    def stream():
+        session = get_session()
+        try:
+            trip = session.get(Trip, trip_id)
+            if not trip:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'Trip not found'})}\n\n"
+                return
+            days = sorted(
+                [d for d in trip.days if d.hotel_name or d.activities],
+                key=lambda d: (d.date or date.max, d.id),
+            )
+            total = len(days)
+            if not total:
+                yield f"data: {json.dumps({'type': 'done', 'updated': 0})}\n\n"
+                return
+            for n, day in enumerate(days, 1):
+                tagline = suggest_day_tagline(day.id)
+                if tagline:
+                    dal.update_day_tagline(day.id, tagline)
+                evt = {
+                    "type": "progress",
+                    "n": n,
+                    "total": total,
+                    "date": day.date.isoformat() if day.date else "?",
+                    "tagline": tagline,
+                }
+                yield f"data: {json.dumps(evt)}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'updated': total})}\n\n"
+        except Exception as exc:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+        finally:
+            session.close()
+
+    return current_app.response_class(
+        stream_with_context(stream()),
+        mimetype="text/event-stream",
+    )
+
+
 @bp.post("/apply/hotel")
 def apply_hotel_endpoint():
     payload = request.get_json(silent=True) or {}

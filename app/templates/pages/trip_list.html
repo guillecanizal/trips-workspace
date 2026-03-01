@@ -3,9 +3,58 @@
 
 {% block content %}
 <div class="space-y-6">
-  <h1 class="text-2xl font-bold">Your Trips</h1>
 
+  {# ── Create trip form — always first, full width ── #}
+  <div class="rounded-xl bg-surface-light border border-border p-6">
+    <h2 class="text-lg font-semibold mb-1">Create a new trip</h2>
+    <p class="text-xs text-slate-500 mb-4">
+      The description is used by the AI to generate your itinerary — the more detail you give, the better the result.
+    </p>
+    <form method="post" class="space-y-4" hx-boost="true" x-data="{ start: '' }">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="sm:col-span-2">
+          <label for="name" class="block text-sm font-medium mb-1">Trip name</label>
+          <input id="name" name="name" required placeholder="e.g. Japan spring 2026"
+                 class="w-full bg-[#0d182b] border border-[#203354] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent" />
+        </div>
+        <div>
+          <label for="start_date" class="block text-sm font-medium mb-1">Start date</label>
+          <input id="start_date" name="start_date" type="date" required
+                 x-model="start"
+                 class="w-full bg-[#0d182b] border border-[#203354] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent" />
+        </div>
+        <div>
+          <label for="end_date" class="block text-sm font-medium mb-1">End date</label>
+          <input id="end_date" name="end_date" type="date" required
+                 :min="start ? new Date(new Date(start + 'T12:00:00').getTime() + 86400000).toISOString().slice(0, 10) : ''"
+                 class="w-full bg-[#0d182b] border border-[#203354] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent" />
+        </div>
+        <div class="sm:col-span-2">
+          <label for="description" class="block text-sm font-medium mb-1">
+            Description
+            <span class="text-slate-500 font-normal">— tell the AI everything it needs to plan your trip</span>
+          </label>
+          <textarea id="description" name="description" rows="5"
+                    placeholder="Examples of useful info:
+• Who's coming: 2 adults + 1 kid (8 years old)
+• Type of trip: family beach holiday / romantic getaway / solo backpacking / road trip
+• Route: flying into Tokyo, ending in Osaka (no return to Tokyo)
+• Style: mix of culture and outdoors, avoid tourist traps, mid-range budget
+• Must-haves: visit Kyoto temples, try local street food, one day at Nara deer park
+• Logistics: renting a car, prefer not to drive in cities"
+                    class="w-full bg-[#0d182b] border border-[#203354] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent resize-y"></textarea>
+        </div>
+      </div>
+      <button type="submit"
+              class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition">
+        Create trip
+      </button>
+    </form>
+  </div>
+
+  {# ── Existing trips ── #}
   {% if trip_summaries %}
+  <h1 class="text-sm font-semibold text-slate-400 uppercase tracking-wider">Your trips</h1>
   <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
     {% for summary in trip_summaries %}
     {% set trip = summary.trip %}
@@ -25,40 +74,7 @@
     </a>
     {% endfor %}
   </div>
-  {% else %}
-  <p class="text-slate-400">No trips yet. Create one below.</p>
   {% endif %}
 
-  <div class="rounded-xl bg-surface-light border border-border p-6 max-w-lg">
-    <h2 class="text-lg font-semibold mb-4">Create a new trip</h2>
-    <form method="post" class="space-y-3" hx-boost="true">
-      <div>
-        <label for="name" class="block text-sm font-medium mb-1">Name</label>
-        <input id="name" name="name" required
-               class="w-full bg-[#0d182b] border border-[#203354] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent" />
-      </div>
-      <div>
-        <label for="description" class="block text-sm font-medium mb-1">Description</label>
-        <textarea id="description" name="description" rows="2"
-                  class="w-full bg-[#0d182b] border border-[#203354] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent"></textarea>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label for="start_date" class="block text-sm font-medium mb-1">Start date</label>
-          <input id="start_date" name="start_date" type="date" required
-                 class="w-full bg-[#0d182b] border border-[#203354] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent" />
-        </div>
-        <div>
-          <label for="end_date" class="block text-sm font-medium mb-1">End date</label>
-          <input id="end_date" name="end_date" type="date" required
-                 class="w-full bg-[#0d182b] border border-[#203354] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent" />
-        </div>
-      </div>
-      <button type="submit"
-              class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition">
-        Create trip
-      </button>
-    </form>
-  </div>
 </div>
 {% endblock %}

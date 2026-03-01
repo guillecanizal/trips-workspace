@@ -11,6 +11,39 @@ document.addEventListener('alpine:init', () => {
     loading: false,
     statusText: 'Thinking...',
     _controller: null,
+    panelHeight: Math.round(window.innerHeight * 0.33),
+    minimized: false,
+    _prevHeight: 0,
+
+    toggleMinimize() {
+      if (this.minimized) {
+        this.panelHeight = this._prevHeight || Math.round(window.innerHeight * 0.33);
+        this.minimized = false;
+        this.$nextTick(() => this.scrollToBottom());
+      } else {
+        this._prevHeight = this.$refs.panel.offsetHeight;
+        this.minimized = true;
+      }
+    },
+
+    startDrag(e) {
+      if (this.minimized) return;
+      e.preventDefault();
+      const startY = e.clientY;
+      const startH = this.$refs.panel.offsetHeight;
+      const onMove = (ev) => {
+        const delta = startY - ev.clientY;
+        this.panelHeight = Math.round(
+          Math.max(120, Math.min(window.innerHeight * 0.85, startH + delta))
+        );
+      };
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    },
 
     sendMessage() {
       const text = this.input.trim();
@@ -208,6 +241,8 @@ document.addEventListener('alpine:init', () => {
     showApply: false,
     promptText: '',
     promptCopied: false,
+    taglinesRunning: false,
+    taglinesStatus: '',
 
     /* Generate prompt only (no AI call) */
     async generatePrompt() {
@@ -299,6 +334,50 @@ document.addEventListener('alpine:init', () => {
         this.streamOutput += `\nNetwork error: ${err}`;
       }
       this.streaming = false;
+    },
+
+    /* Generate and save taglines for all days */
+    async generateTaglines() {
+      if (!confirm('Generate a summary tagline for every day? Existing taglines will be replaced.')) return;
+      this.taglinesRunning = true;
+      this.taglinesStatus = 'Starting...';
+      try {
+        const resp = await fetch(`/api/trips/${this.tripId}/generate-taglines`, { method: 'POST' });
+        if (!resp.ok) {
+          this.taglinesStatus = 'Request failed.';
+          this.taglinesRunning = false;
+          return;
+        }
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop();
+          for (const part of parts) {
+            if (!part.startsWith('data: ')) continue;
+            try {
+              const evt = JSON.parse(part.slice(6).trim());
+              if (evt.type === 'progress') {
+                const label = evt.tagline ? `"${evt.tagline}"` : 'skipped';
+                this.taglinesStatus = `${evt.n}/${evt.total} — ${evt.date}: ${label}`;
+              } else if (evt.type === 'done') {
+                this.taglinesStatus = `Done — ${evt.updated} day${evt.updated !== 1 ? 's' : ''} updated. Reloading...`;
+                setTimeout(() => window.location.reload(), 900);
+              } else if (evt.type === 'error') {
+                this.taglinesStatus = `Error: ${evt.message}`;
+              }
+            } catch (e) { /* ignore */ }
+          }
+        }
+      } catch (err) {
+        this.taglinesStatus = `Error: ${err.message}`;
+      } finally {
+        this.taglinesRunning = false;
+      }
     },
 
     /* Apply the generated/pasted JSON via form POST */

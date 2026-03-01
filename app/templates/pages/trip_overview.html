@@ -219,11 +219,9 @@
 {% block chat_panel %}
 <div class="fixed bottom-0 inset-x-0 z-20">
   <div class="max-w-7xl mx-auto px-4">
-    <div class="border border-slate-300/20 border-b-0 rounded-t-xl overflow-hidden shadow-2xl" style="height: 33vh;">
-      {% with chat_trip_id=trip.id, chat_day_id=none %}
-        {% include "partials/chat_panel.html" %}
-      {% endwith %}
-    </div>
+    {% with chat_trip_id=trip.id, chat_day_id=none %}
+      {% include "partials/chat_panel.html" %}
+    {% endwith %}
   </div>
 </div>
 {% endblock %}

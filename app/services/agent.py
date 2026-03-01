@@ -252,6 +252,9 @@ def clear_thread(thread_id: str) -> None:
 
 
 def _enrich_knowledge_general(trip_id: int, new_info: str) -> None:
+    # Skip short conversational replies — not worth an LLM call
+    if len(new_info) < 80:
+        return
     try:
         trip = dal.get_trip_compact(trip_id)
         current = (trip.get("knowledge_general") or "").strip()
@@ -259,27 +262,29 @@ def _enrich_knowledge_general(trip_id: int, new_info: str) -> None:
         if not current:
             prompt = (
                 "You are a travel information assistant. "
-                "Given this chat reply, extract any useful facts about the destination "
-                "(geography, culture, climate, currency, language, transport, safety, gastronomy, tips). "
-                "Write a concise structured document with labeled paragraphs.\n\n"
+                "Read this chat reply and extract any useful facts about the destination "
+                "(geography, culture, climate, currency, language, transport, safety, gastronomy, tips).\n\n"
                 f"CHAT REPLY:\n{new_info}\n\n"
-                "If the reply contains no destination information, reply with exactly: NO_UPDATE\n"
-                "Otherwise write 6-10 short labeled paragraphs."
+                "If the reply contains no destination information, output only the word: NO_UPDATE\n"
+                "If it does contain destination facts, output 4-8 short labeled paragraphs. "
+                "Do not include the word NO_UPDATE in that case."
             )
         else:
             prompt = (
-                "You maintain a destination information document for a trip.\n\n"
+                "You maintain a destination knowledge document for a trip.\n\n"
                 f"CURRENT DOCUMENT:\n{current}\n\n"
                 f"NEW CHAT REPLY:\n{new_info}\n\n"
-                "If the reply adds useful new destination facts, rewrite the document integrating them. "
-                "Keep it concise, structured, and non-redundant.\n"
-                "If the reply adds nothing relevant, reply with exactly: NO_UPDATE"
+                "Does the new reply contain destination facts that are NOT already in the document?\n"
+                "- If YES: rewrite the full document integrating the new facts. Keep it concise and non-redundant.\n"
+                "- If NO: output only the word: NO_UPDATE"
             )
 
         response = get_model().invoke([{"role": "user", "content": prompt}])
         merged = getattr(response, "content", str(response)).strip()
-        if merged and merged != "NO_UPDATE":
-            dal.update_knowledge_general(trip_id, merged)
+        # Robust check: model may add surrounding text to NO_UPDATE
+        if not merged or "NO_UPDATE" in merged.upper():
+            return
+        dal.update_knowledge_general(trip_id, merged)
     except Exception:  # noqa: S110 — best-effort, intentionally silent
         pass
 
@@ -293,7 +298,7 @@ def suggest_day_tagline(day_id: int) -> str:
     """Generate a 2-5 word tagline for a day. Returns '' on failure."""
     try:
         day_data = dal.get_day_compact(day_id)
-        location = day_data.get("hotel_location") or ""
+        location = (day_data.get("hotel") or {}).get("location") or ""
         activities = [a["name"] for a in day_data.get("activities", []) if a.get("name")]
         if not location and not activities:
             return ""
@@ -304,7 +309,8 @@ def suggest_day_tagline(day_id: int) -> str:
             parts.append("Activities: " + ", ".join(activities[:5]))
         prompt = (
             "You are a travel writer. Given this day's info, write a short evocative tagline "
-            "(2 to 5 words, no quotes, no punctuation at the end).\n\n"
+            "(2 to 5 words, no quotes, no punctuation at the end). "
+            "Write it in the same language as the location and activity names provided.\n\n"
             + "\n".join(parts)
             + "\n\nTagline:"
         )
@@ -337,17 +343,57 @@ def hybrid_chat_stream(
 
     # Build day context if scoped to a specific day
     day_context = ""
+    day_detail_block = ""
     if day_id is not None:
         try:
             day_info = dal.get_day_compact(day_id)
             day_index = day_info.get("day_index")
             day_date = day_info.get("date") or "?"
-            day_location = day_info.get("hotel_location") or ""
+            hotel = day_info.get("hotel") or {}
+            activities = day_info.get("activities") or []
+            hotel_location = hotel.get("location") or ""
+
             day_context = (
                 f"El usuario está viendo el Día {day_index} ({day_date}"
-                + (f", {day_location}" if day_location else "")
+                + (f", {hotel_location}" if hotel_location else "")
                 + f"). Cuando uses herramientas que requieran day_index, usa {day_index}. "
+                "Responde siempre en el contexto de este día específico. "
             )
+
+            # Build a detailed block with everything recorded for this day
+            lines: list[str] = [f"DATOS DEL DÍA {day_index} ({day_date}):"]
+            hotel_name = hotel.get("name") or ""
+            hotel_desc = hotel.get("description") or ""
+            hotel_price = hotel.get("price")
+            if hotel_name or hotel_location:
+                hotel_line = f"  Hotel: {hotel_name or '(sin nombre)'}"
+                if hotel_location:
+                    hotel_line += f" — {hotel_location}"
+                if hotel_price is not None:
+                    hotel_line += f" (€{hotel_price}/noche)"
+                lines.append(hotel_line)
+                if hotel_desc:
+                    lines.append(f"    {hotel_desc}")
+            else:
+                lines.append("  Hotel: no definido")
+            if activities:
+                lines.append("  Actividades:")
+                for i, act in enumerate(activities, 1):
+                    act_name = act.get("name") or "?"
+                    act_loc = act.get("location") or ""
+                    act_price = act.get("price")
+                    act_desc = act.get("description") or ""
+                    act_line = f"    {i}. {act_name}"
+                    if act_loc:
+                        act_line += f" ({act_loc})"
+                    if act_price is not None:
+                        act_line += f" — €{act_price}"
+                    lines.append(act_line)
+                    if act_desc:
+                        lines.append(f"       {act_desc}")
+            else:
+                lines.append("  Actividades: ninguna definida")
+            day_detail_block = "\n".join(lines)
         except ValueError:
             pass
 
@@ -370,6 +416,9 @@ def hybrid_chat_stream(
         f"Fechas: {trip.get('start_date')} → {trip.get('end_date')}\n"
         f"Descripción: {trip.get('description') or 'N/A'}\n"
     )
+
+    if day_detail_block:
+        system_prompt += f"\n{day_detail_block}\n"
 
     if knowledge:
         system_prompt += f"\nINFORMACIÓN SOBRE EL DESTINO:\n{knowledge}\n"

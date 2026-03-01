@@ -16,7 +16,14 @@
         <span x-show="!streaming">Generate &amp; stream</span>
         <span x-show="streaming">Generating...</span>
       </button>
+      <button type="button" @click="generateTaglines()" :disabled="taglinesRunning || streaming"
+              class="text-xs border border-slate-600 hover:border-slate-400 text-slate-300 px-3 py-1.5 rounded-full transition disabled:opacity-50">
+        <span x-show="!taglinesRunning">Generate day summaries</span>
+        <span x-show="taglinesRunning" x-cloak>Generating...</span>
+      </button>
     </div>
+    {# Tagline progress #}
+    <div x-show="taglinesStatus" x-cloak class="text-xs text-slate-400 font-mono truncate" x-text="taglinesStatus"></div>
 
     {# ── Prompt area ── #}
     {% if ai_prompt_text %}
