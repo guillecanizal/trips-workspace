@@ -54,6 +54,26 @@ Trip Planner does not try to own your data or lock you into its ecosystem.
 
 ---
 
+## Agentic access (advanced)
+
+Trip Planner exposes an optional MCP server so external AI agents — Claude Code, OpenCode, or any MCP-compatible client — can read and build trips programmatically.
+
+**The primary use case:** building long itineraries day by day with a capable external model (Claude, GPT). This solves the quality problem of one-shot generation on multi-week trips — an agent plans each day individually with global budget awareness.
+
+```
+create_trip(...)          → trip structure with day numbers
+plan_day(id, 1, ...)      → day 1: hotel + activities
+plan_day(id, 2, ...)      → day 2: ...
+...
+export_trip(id)           → PDF download URL
+```
+
+**Setup:** run `/mcp-trips` inside Claude Code for guided configuration. See [`agent/README.md`](agent/README.md) for full details.
+
+The UI remains the primary interface. The MCP layer is additive.
+
+---
+
 ## Philosophy
 
 - **Private by default.** No cloud. No analytics. No third-party services. The AI runs locally via [Ollama](https://ollama.com).

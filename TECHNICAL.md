@@ -16,6 +16,8 @@ Architecture and engineering notes for Trip Planner. For product overview and us
 | Structured output | Pydantic 2 |
 | PDF generation | ReportLab |
 | Frontend | Jinja2 + HTMX + Alpine.js + Tailwind CSS (all CDN) |
+| MCP server | FastMCP (`mcp[cli]`) |
+| HTTP client (MCP layer) | httpx |
 | Linting | Ruff |
 | Type checking | mypy (strict) |
 
@@ -26,6 +28,13 @@ No build step. No Node.js. No compiled frontend assets.
 ## Project structure
 
 ```
+agent/
+├── __init__.py
+├── mcp_server.py        # FastMCP entry point (stdio transport)
+├── tools.py             # Tool implementations — call Flask HTTP API
+├── schemas.py           # Pydantic input models
+└── README.md            # Setup guide for OpenCode / Claude Code
+
 app/
 ├── __init__.py          # App factory (create_app)
 ├── database.py          # SQLAlchemy engine + session factory
@@ -98,7 +107,14 @@ Request → routes.py → models.py / dal.py → DB
                     → services/ai.py  → Ollama
                     → services/agent.py → Ollama
                     → utils/          → file output
+
+External agent (Claude Code / OpenCode)
+         → MCP tools (agent/mcp_server.py, stdio)
+               → Flask HTTP API (localhost:5000)
+                     → routes.py → DB
 ```
+
+The MCP layer never bypasses Flask — all writes go through existing route validation.
 
 ### Session management
 
@@ -158,6 +174,45 @@ Conversational messages (questions, logistics queries) receive a plain text repl
 **Knowledge enrichment:** after every plain text response, `_enrich_knowledge_general` runs asynchronously (best-effort, silent on failure). It asks the LLM whether the response contained useful destination facts, and if so merges them into `Trip.knowledge_general`.
 
 **Lazy initialisation:** `get_model()` and `get_tool_model()` are called on first use, so the app starts without Ollama running.
+
+---
+
+## MCP agent layer
+
+An optional stdio MCP server (`agent/`) that exposes the trip planner as AI-accessible tools. External agents spawn it automatically — it does not run as a persistent process.
+
+### Tools
+
+| Tool | Description |
+|------|-------------|
+| `list_trips` | Summary list: id, name, destination, dates, day count, total budget |
+| `get_trip(trip_id)` | Full trip with days (day_number injected), activities, computed KPIs |
+| `create_trip(name, destination, start_date, end_date)` | Create trip + auto-generate sequential days |
+| `update_trip(trip_id, ...)` | Update trip metadata |
+| `plan_day(trip_id, day_number, hotel, activities[])` | ★ Configure a full day in one call |
+| `set_hotel(trip_id, day_number, ...)` | Replace hotel for a day (incremental edit) |
+| `add_activity(trip_id, day_number, ...)` | Add a single activity (incremental edit) |
+| `remove_activity(trip_id, day_number, name)` | Remove activity by name |
+| `export_trip(trip_id, format)` | Return PDF or CSV download URL |
+
+`plan_day` is the primary tool for building itineraries. It sets the hotel and adds all activities for a day in a single call, returning running trip KPIs so the agent can track budget after each step.
+
+### Day addressing
+
+The REST API uses internal `day_id` values. The MCP layer uses semantic `day_number` (1-based). `tools.py` resolves `day_number → day_id` internally by fetching the trip and sorting days by date.
+
+### Claude Code skills
+
+| Skill | Description |
+|-------|-------------|
+| `/mcp-trips` | Verify dependencies, smoke test, print OpenCode / Claude Code config |
+| `/build-trip` | Interactive workflow: collect trip params → `create_trip` → `plan_day` × N → verify KPIs → export |
+
+### Environment variable
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TRIP_API_URL` | `http://localhost:5000` | Flask base URL used by MCP tools |
 
 ---
 
@@ -248,6 +303,7 @@ Both the one-shot generator and the agent use Server-Sent Events. The SSE endpoi
 | `DATABASE_URL` | `sqlite:///instance/trip_planner.db` | SQLAlchemy connection string |
 | `SECRET_KEY` | `dev-secret-key` | Flask session key — change in production |
 | `OLLAMA_MODEL` | `qwen2.5:7b` | Ollama model name |
+| `TRIP_API_URL` | `http://localhost:5000` | Flask base URL used by MCP tools |
 
 ---
 
