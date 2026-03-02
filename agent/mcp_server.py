@@ -29,7 +29,7 @@ import sys
 
 from mcp.server.fastmcp import FastMCP
 
-from .schemas import ActivityInput, CreateTripInput, HotelInput, PlanDayInput, UpdateTripInput
+from .schemas import ActivityInput, CreateTripInput, GeneralItemInput, HotelInput, PlanDayInput, UpdateTripInput
 from . import tools
 
 mcp = FastMCP(
@@ -240,6 +240,39 @@ def remove_activity(trip_id: int, day_number: int, activity_name: str) -> dict:
     Use get_trip first to see the exact activity names on each day.
     If there are duplicates, the first match is removed."""
     return tools.remove_activity(trip_id, day_number, activity_name)
+
+
+@mcp.tool()
+def add_general_item(
+    trip_id: int,
+    name: str,
+    price: float | None = None,
+    description: str | None = None,
+    reservation_id: str | None = None,
+    link: str | None = None,
+    cancelable: bool | None = None,
+) -> dict:
+    """Add a trip-level general item: flights, car rental, travel insurance, visas, etc.
+    These are costs that apply to the whole trip rather than a specific day.
+    They are included in the total budget shown in the app."""
+    return tools.add_general_item(
+        trip_id,
+        GeneralItemInput(
+            name=name,
+            price=price,
+            description=description,
+            reservation_id=reservation_id,
+            link=link,
+            cancelable=cancelable,
+        ),
+    )
+
+
+@mcp.tool()
+def remove_general_item(trip_id: int, item_name: str) -> dict:
+    """Remove a general item by name from a trip.
+    Use get_trip first to see the exact item names."""
+    return tools.remove_general_item(trip_id, item_name)
 
 
 @mcp.tool()

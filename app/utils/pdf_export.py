@@ -71,7 +71,7 @@ def _S() -> dict[str, ParagraphStyle]:
         ),
         "day_num": ParagraphStyle(
             "DayNum", fontName="Helvetica-Bold", fontSize=10,
-            textColor=C_WHITE, leading=14, alignment=TA_LEFT, opacity=0.8,
+            textColor=C_WHITE, leading=14, alignment=TA_CENTER, opacity=0.8,
         ),
         "day_date": ParagraphStyle(
             "DayDate", fontName="Helvetica-Bold", fontSize=14,
@@ -147,44 +147,44 @@ def _format_price(price: float | None) -> str:
 
 def _format_date_long(d: Any) -> str:
     if not d:
-        return "Fecha por confirmar"
+        return "Date TBC"
     if hasattr(d, "weekday"):
-        days   = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"]
-        months = ["enero","febrero","marzo","abril","mayo","junio",
-                  "julio","agosto","septiembre","octubre","noviembre","diciembre"]
-        return f"{days[d.weekday()]} {d.day} de {months[d.month-1]} de {d.year}"
+        days   = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+        months = ["January","February","March","April","May","June",
+                  "July","August","September","October","November","December"]
+        return f"{days[d.weekday()]}, {months[d.month-1]} {d.day}, {d.year}"
     return str(d)
 
 # --- Type badge (Sober tones) ---
 _ITEM_TYPES: list[tuple[list[str], str, str]] = [
-    (["vuelo","flight","avion","billete","air"],         "VUELO",     "#334155"),
-    (["tren","train","ave","renfe","rail"],               "TREN",      "#334155"),
+    (["vuelo","flight","avion","billete","air"],         "FLIGHT",    "#334155"),
+    (["tren","train","ave","renfe","rail"],               "TRAIN",     "#334155"),
     (["bus","autobus","transfer","shuttle"],              "BUS",       "#334155"),
-    (["coche","car","rental","alquiler"],                 "COCHE",     "#334155"),
-    (["barco","ferry","crucero","boat","ship"],           "BARCO",     "#334155"),
-    (["seguro","insurance","cobertura"],                  "SEGURO",    "#475569"),
+    (["coche","car","rental","alquiler"],                 "CAR",       "#334155"),
+    (["barco","ferry","crucero","boat","ship"],           "FERRY",     "#334155"),
+    (["seguro","insurance","cobertura"],                  "INSURANCE", "#475569"),
     (["hotel","hostal","alojamiento","airbnb"],           "HOTEL",     "#1E293B"),
-    (["entrada","museum","museu","parque","theme park"],  "ENTRADA",   "#1E293B"),
-    (["restaurante","restaurant","cena","comida","tapas"],"RESTAURANTE","#64748B"),
+    (["entrada","museum","museu","parque","theme park"],  "TICKET",    "#1E293B"),
+    (["restaurante","restaurant","cena","comida","tapas"],"DINING",    "#64748B"),
     (["visa","pasaporte","passport"],                     "DOCS",      "#475569"),
 ]
 
 _ACTIVITY_TYPES: list[tuple[list[str], str, str]] = [
-    (["museo","museum","galeria","arte","art","gallery"], "MUSEO",      "#1E293B"),
-    (["playa","beach","mar","ocean"],                     "PLAYA",      "#334155"),
-    (["hiking","senderismo","montaña","trail","trek"],    "SENDERISMO", "#334155"),
-    (["restaurante","cena","dinner","comida","tapas"],    "GASTRONOMÍA","#475569"),
-    (["bar","copa","cerveza","beer","vino","wine"],       "OCIO",       "#475569"),
-    (["catedral","iglesia","church","temple","mezquita"], "CULTURA",    "#1E293B"),
-    (["castillo","palace","palacio","fortaleza"],         "CULTURA",    "#1E293B"),
-    (["compras","shopping","mercado","market"],           "COMPRAS",    "#475569"),
-    (["concierto","teatro","theatre","espectaculo"],      "ESPECTÁCULO","#475569"),
-    (["spa","relax","masaje","yoga"],                     "BIENESTAR",  "#1E293B"),
-    (["tour","excursion","guia","guide"],                 "TOUR",       "#334155"),
-    (["aeropuerto","airport","tren","train","transfer"],  "TRANSPORTE", "#334155"),
+    (["museo","museum","galeria","arte","art","gallery"], "MUSEUM",   "#1E293B"),
+    (["playa","beach","mar","ocean"],                     "BEACH",    "#334155"),
+    (["hiking","senderismo","montaña","trail","trek"],    "HIKING",   "#334155"),
+    (["restaurante","cena","dinner","comida","tapas"],    "DINING",   "#475569"),
+    (["bar","copa","cerveza","beer","vino","wine"],       "LEISURE",  "#475569"),
+    (["catedral","iglesia","church","temple","mezquita"], "CULTURE",  "#1E293B"),
+    (["castillo","palace","palacio","fortaleza"],         "CULTURE",  "#1E293B"),
+    (["compras","shopping","mercado","market"],           "SHOPPING", "#475569"),
+    (["concierto","teatro","theatre","espectaculo"],      "EVENTS",   "#475569"),
+    (["spa","relax","masaje","yoga"],                     "WELLNESS", "#1E293B"),
+    (["tour","excursion","guia","guide"],                 "TOUR",     "#334155"),
+    (["aeropuerto","airport","tren","train","transfer"],  "TRANSIT",  "#334155"),
 ]
 
-def _infer_badge(name: str, table: list[tuple[list[str], str, str]], fallback_label: str = "ITEM") -> tuple[str, str]:
+def _infer_badge(name: str, table: list[tuple[list[str], str, str]], fallback_label: str = "ACTIVITY") -> tuple[str, str]:
     lower = name.lower()
     for keywords, label, color in table:
         if any(kw in lower for kw in keywords):
@@ -195,7 +195,7 @@ def _badge_cell(label: str, bg_hex: str, S: dict[str, ParagraphStyle]) -> Table:
     """A small coloured pill label."""
     t = Table(
         [[Paragraph(label, S["badge"])]],
-        colWidths=[18 * mm],
+        colWidths=[22 * mm],
     )
     t.setStyle(TableStyle([
         ("BACKGROUND",    (0, 0), (-1, -1), colors.HexColor(bg_hex)),
@@ -246,10 +246,10 @@ def _cover_block(trip: Any, stats: dict[str, Any], S: dict[str, ParagraphStyle])
         return [Paragraph(val, S["stat_value"]), Paragraph(lbl.upper(), S["stat_label"])]
 
     stats_data = [[
-        _stat(str(stats.get("day_count", 0)),              "días"),
-        _stat(str(stats.get("activity_count", 0)),         "actividades"),
-        _stat(f"{stats.get('total_distance_km') or 0} km", "recorrido"),
-        _stat(total_cost,                                   "total estimado"),
+        _stat(str(stats.get("day_count", 0)),              "days"),
+        _stat(str(stats.get("activity_count", 0)),         "activities"),
+        _stat(f"{stats.get('total_distance_km') or 0} km", "distance"),
+        _stat(total_cost,                                   "estimated total"),
     ]]
     stats_table = Table(stats_data, colWidths=[stat_col_w] * 4)
     stats_table.setStyle(TableStyle([
@@ -272,7 +272,7 @@ def _cover_block(trip: Any, stats: dict[str, Any], S: dict[str, ParagraphStyle])
 # ---------------------------------------------------------------------------
 
 def _day_header(index: int, day: Any, S: dict[str, ParagraphStyle]) -> Table:
-    num_str  = f"DÍA {index:02d}"
+    num_str  = f"DAY {index:02d}"
     date_str = _format_date_long(day.date)
 
     t = Table(
@@ -285,6 +285,10 @@ def _day_header(index: int, day: Any, S: dict[str, ParagraphStyle]) -> Table:
         ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
         ("LEFTPADDING",   (0, 0), (-1, -1), 12),
         ("RIGHTPADDING",  (0, 0), (-1, -1), 12),
+        # Day number column: no side padding so it centres cleanly
+        ("LEFTPADDING",   (0, 0), (0, 0),   0),
+        ("RIGHTPADDING",  (0, 0), (0, 0),   0),
+        ("ALIGN",         (0, 0), (0, 0),   "CENTER"),
         ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
         ("LINEBELOW",     (0, 0), (-1, -1),  1, colors.HexColor("#475569")),
     ]))
@@ -301,13 +305,14 @@ def _general_item_block(item: Any, S: dict[str, ParagraphStyle]) -> list[Any]:
 
     badge = _badge_cell(label, bg, S)
     name_p = Paragraph(f"<b>{item.name}</b>", S["item_title"])
-    row = Table([[badge, name_p]], colWidths=[20 * mm, INNER_W - 20 * mm])
+    row = Table([[badge, name_p]], colWidths=[22 * mm, INNER_W - 22 * mm])
     row.setStyle(TableStyle([
-        ("VALIGN",  (0, 0), (-1, -1), "MIDDLE"),
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
         ("TOPPADDING",    (0, 0), (-1, -1), 0),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
         ("LEFTPADDING",   (0, 0), (-1, -1), 0),
         ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
+        ("LEFTPADDING",   (1, 0), (1, 0),   6),
     ]))
     elems.append(row)
 
@@ -316,18 +321,18 @@ def _general_item_block(item: Any, S: dict[str, ParagraphStyle]) -> list[Any]:
 
     meta: list[str] = []
     if item.reservation_id:
-        meta.append(f"Reserva: {item.reservation_id}")
+        meta.append(f"Booking ref: {item.reservation_id}")
     if item.price is not None:
         meta.append(_format_price(item.price))
     if item.cancelable is not None:
-        meta.append("Cancelable" if item.cancelable else "No cancelable")
+        meta.append("Cancellable" if item.cancelable else "Non-refundable")
     if meta:
         elems.append(Paragraph(" | ".join(meta), S["meta_indent"]))
 
-    lnk = _link_para("Enlace de reserva", item.link, S["link_indent"])
+    lnk = _link_para("Booking link", item.link, S["link_indent"])
     if lnk:
         elems.append(lnk)
-    maps = _link_para("Ver en Google Maps", item.maps_link, S["link_indent"])
+    maps = _link_para("View on Google Maps", item.maps_link, S["link_indent"])
     if maps:
         elems.append(maps)
 
@@ -337,17 +342,18 @@ def _general_item_block(item: Any, S: dict[str, ParagraphStyle]) -> list[Any]:
 
 def _hotel_block(day: Any, S: dict[str, ParagraphStyle]) -> list[Any]:
     elems: list[Any] = []
-    hotel_name = day.hotel_name or "Alojamiento por confirmar"
+    hotel_name = day.hotel_name or "Accommodation TBC"
 
     badge = _badge_cell("HOTEL", "#1E293B", S)
     name_p = Paragraph(f"<b>{hotel_name}</b>", S["item_title"])
-    row = Table([[badge, name_p]], colWidths=[20 * mm, INNER_W - 20 * mm])
+    row = Table([[badge, name_p]], colWidths=[22 * mm, INNER_W - 22 * mm])
     row.setStyle(TableStyle([
         ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
         ("TOPPADDING",    (0, 0), (-1, -1), 0),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
         ("LEFTPADDING",   (0, 0), (-1, -1), 0),
         ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
+        ("LEFTPADDING",   (1, 0), (1, 0),   6),
     ]))
     elems.append(row)
 
@@ -356,21 +362,21 @@ def _hotel_block(day: Any, S: dict[str, ParagraphStyle]) -> list[Any]:
 
     meta: list[str] = []
     if day.hotel_price is not None:
-        meta.append(f"{_format_price(day.hotel_price)} / noche")
+        meta.append(f"{_format_price(day.hotel_price)} / night")
     if day.hotel_reservation_id:
-        meta.append(f"Reserva: {day.hotel_reservation_id}")
+        meta.append(f"Booking ref: {day.hotel_reservation_id}")
     if day.hotel_cancelable is not None:
-        meta.append("Cancelable" if day.hotel_cancelable else "No cancelable")
+        meta.append("Cancellable" if day.hotel_cancelable else "Non-refundable")
     if meta:
         elems.append(Paragraph(" | ".join(meta), S["meta_indent"]))
 
     if day.hotel_description:
         elems.append(Paragraph(day.hotel_description, S["body_indent"]))
 
-    hotel_lnk = _link_para("Ver hotel", day.hotel_link, S["link_indent"])
+    hotel_lnk = _link_para("View hotel", day.hotel_link, S["link_indent"])
     if hotel_lnk:
         elems.append(hotel_lnk)
-    hotel_maps = _link_para("Ver en Google Maps", day.hotel_maps_link, S["link_indent"])
+    hotel_maps = _link_para("View on Google Maps", day.hotel_maps_link, S["link_indent"])
     if hotel_maps:
         elems.append(hotel_maps)
 
@@ -386,14 +392,14 @@ def _hotel_block(day: Any, S: dict[str, ParagraphStyle]) -> list[Any]:
             t += f"{day.distance_minutes}m"
         travel.append(t.strip())
     if travel:
-        elems.append(Paragraph("Viaje: " + " · ".join(travel), S["meta_indent"]))
+        elems.append(Paragraph("Travel: " + " · ".join(travel), S["meta_indent"]))
 
     elems.append(Spacer(1, 4 * mm))
     return elems
 
 
 def _activity_block(activity: Any, S: dict[str, ParagraphStyle]) -> list[Any]:
-    label, bg = _infer_badge(activity.name, _ACTIVITY_TYPES, "ACTIVIDAD")
+    label, bg = _infer_badge(activity.name, _ACTIVITY_TYPES, "ACTIVITY")
     elems: list[Any] = []
 
     badge = _badge_cell(label, bg, S)
@@ -405,6 +411,7 @@ def _activity_block(activity: Any, S: dict[str, ParagraphStyle]) -> list[Any]:
         ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
         ("LEFTPADDING",   (0, 0), (-1, -1), 0),
         ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
+        ("LEFTPADDING",   (1, 0), (1, 0),   6),
     ]))
     elems.append(row)
 
@@ -417,14 +424,14 @@ def _activity_block(activity: Any, S: dict[str, ParagraphStyle]) -> list[Any]:
     if activity.price is not None:
         meta.append(_format_price(activity.price))
     if activity.reservation_id:
-        meta.append(f"Reserva: {activity.reservation_id}")
+        meta.append(f"Booking ref: {activity.reservation_id}")
     if meta:
         elems.append(Paragraph(" | ".join(meta), S["meta_indent"]))
 
-    act_lnk = _link_para("Página oficial", activity.link, S["link_indent"])
+    act_lnk = _link_para("Official page", activity.link, S["link_indent"])
     if act_lnk:
         elems.append(act_lnk)
-    act_maps = _link_para("Ver en Google Maps", activity.maps_link, S["link_indent"])
+    act_maps = _link_para("View on Google Maps", activity.maps_link, S["link_indent"])
     if act_maps:
         elems.append(act_maps)
 
@@ -439,7 +446,7 @@ def _knowledge_block(knowledge: str, S: dict[str, ParagraphStyle]) -> list[Any]:
     """Render knowledge_general text as labeled paragraphs."""
     elems: list[Any] = [
         KeepTogether([
-            Paragraph("INFORMACIÓN DEL DESTINO", S["act_section"]),
+            Paragraph("DESTINATION OVERVIEW", S["act_section"]),
             _hr_steel(),
         ]),
     ]
@@ -490,7 +497,7 @@ class _FooterCanvas(_RLCanvas):
         self.setFont("Helvetica", 7.5)
         self.setFillColor(C_GREY_META)
         self.drawString(MARGIN, 8 * mm, self._doc_title if hasattr(self, "_doc_title") else "")
-        self.drawRightString(PAGE_W - MARGIN, 8 * mm, f"Página {current} de {total}")
+        self.drawRightString(PAGE_W - MARGIN, 8 * mm, f"Page {current} of {total}")
         self.restoreState()
 
 
@@ -523,7 +530,7 @@ def generate_trip_pdf(
     # General items
     if general_items:
         story.append(KeepTogether([
-            Paragraph("RESUMEN DE TRANSPORTES Y LOGÍSTICA", S["act_section"]),
+            Paragraph("TRANSPORT & LOGISTICS OVERVIEW", S["act_section"]),
             _hr_steel(),
         ]))
         for item in general_items:
@@ -540,7 +547,7 @@ def generate_trip_pdf(
         day_elems: list[Any] = [
             Spacer(1, 6 * mm),
             _day_header(index, day, S),
-            Spacer(1, 4 * mm),
+            Spacer(1, 8 * mm),
         ]
 
         # Hotel
@@ -548,7 +555,7 @@ def generate_trip_pdf(
 
         # Activities
         if day.activities:
-            day_elems.append(Paragraph("ITINERARIO DEL DÍA", S["act_section"]))
+            day_elems.append(Paragraph("DAY ITINERARY", S["act_section"]))
             day_elems.append(_hr_steel(0.5))
             for i, activity in enumerate(day.activities):
                 day_elems.extend(_activity_block(activity, S))
@@ -556,7 +563,7 @@ def generate_trip_pdf(
                     day_elems.append(_hr_grey())
             day_elems.append(Spacer(1, 2 * mm))
         else:
-            day_elems.append(Paragraph("Sin actividades planificadas.", S["meta"]))
+            day_elems.append(Paragraph("No activities planned.", S["meta"]))
 
         story.append(KeepTogether(day_elems[:6]))
         story.extend(day_elems[6:])

@@ -12,9 +12,8 @@ This document provides critical architectural details and constraints for AI age
 ### Backend Stack
 - **Framework**: Python 3.10+ with Flask.
 - **Database**: SQLite (`instance/trips.db`) with SQLAlchemy ORM.
-- **AI Orchestration**: 
-    - **LangChain**: Used for itinerary generation and streaming.
-    - **LangGraph**: Used for the conversational AI agent.
+- **AI Orchestration**:
+    - **LangChain**: Used for itinerary generation, streaming, and the conversational agent.
 - **Local LLM**: Ollama (default: `gemma2:9b`).
 
 ### Frontend Stack
@@ -47,7 +46,7 @@ app/
 ├── routes.py          # Flask controllers and API endpoints
 ├── services/          # Business logic
 │   ├── ai.py          # Itinerary generation (LangChain)
-│   └── agent.py       # Conversational logic (LangGraph)
+│   └── agent.py       # Conversational logic (LangChain tool calling)
 ├── templates/         # Jinja2 HTML templates
 └── utils/             # Helper modules (Map links, PDF/CSV export)
 ```
@@ -60,7 +59,7 @@ app/
 
 ### AI Chat Agent (`services/agent.py`)
 - **Streaming**: The chat agent streams events via SSE through `/agent/stream` (POST). Events are JSON objects with `type` = `status | result | error`, plus a final `[DONE]` sentinel.
-- **Persistent History**: Uses LangGraph's `MemorySaver` checkpointer. Each trip has a `thread_id` stored in the Flask session. Call `DELETE /agent/history/<trip_id>` to clear it.
+- **Persistent History**: In-memory dict keyed by `thread_id`. Each trip has a `thread_id` derived from the trip/day ID. Call `DELETE /agent/history/<trip_id>` to clear it.
 - **Lazy model init**: `get_model()` / `get_tool_model()` initialise `ChatOllama` on first call, so the app starts even if Ollama is not running.
 - **Intents**: The agent resolves one of four intents before calling an LLM tool — `activities`, `hotels`, `budget`, `summary`.
 - **Structured output**: `propose_activities` and `propose_hotels` use Pydantic models (`ActivityCandidatesResponse`, `HotelCandidatesResponse`) with `.with_structured_output()` for reliable parsing.

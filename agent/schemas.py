@@ -46,3 +46,12 @@ class UpdateTripInput(BaseModel):
     description: str | None = Field(default=None, description="New description")
     start_date: str | None = Field(default=None, description="New start date YYYY-MM-DD")
     end_date: str | None = Field(default=None, description="New end date YYYY-MM-DD")
+
+
+class GeneralItemInput(BaseModel):
+    name: str = Field(description="Item name, e.g. 'Round trip flights' or 'Car rental'")
+    price: float | None = Field(default=None, description="Total cost in euros")
+    description: str | None = Field(default=None, description="Short description")
+    reservation_id: str | None = Field(default=None, description="Booking reference")
+    link: str | None = Field(default=None, description="Website or booking URL")
+    cancelable: bool | None = Field(default=None, description="Whether booking is cancelable")

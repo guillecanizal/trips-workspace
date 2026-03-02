@@ -82,6 +82,14 @@ def _clean_text(value: str | None) -> str:
     return (value or "").strip()
 
 
+_ES_WORDS = {"el", "la", "los", "las", "un", "una", "de", "en", "que", "es", "con", "para", "del", "por", "qué", "cuánto", "dame", "dime", "propón", "busca", "muéstrame"}
+
+def _detect_lang(text: str) -> str:
+    """Return 'es' if the message looks Spanish, otherwise 'en'."""
+    words = set(text.lower().split())
+    return "es" if words & _ES_WORDS else "en"
+
+
 def _resolve_location(day: dict[str, Any]) -> str:
     hotel_location = _clean_text((day.get("hotel") or {}).get("location"))
     if hotel_location:
@@ -110,18 +118,19 @@ def _prepare_day_context(trip_id: int, day_index: int) -> tuple[str, str]:
 
 
 def _call_llm_for_candidates(
-    task: str, location: str, date: str, count: int
+    task: str, location: str, date: str, count: int, lang: str = "es"
 ) -> list[dict[str, Any]]:
     """Generate candidates using Pydantic structured output."""
     is_hotel = task == "propose_hotels"
     response_model = HotelCandidatesResponse if is_hotel else ActivityCandidatesResponse
-    item_type = "hoteles" if is_hotel else "actividades turísticas"
+    item_type = "hotels" if is_hotel else "tourist activities"
 
     system_message = (
-        f"Genera exactamente {count} {item_type} para {location}. "
-        f"Devuelve un JSON con un array 'candidates' de {count} elementos."
+        f"Generate exactly {count} {item_type} for {location}. "
+        f"Return a JSON with a 'candidates' array of {count} items. "
+        f"Write all text fields in this language: {lang}."
     )
-    user_message = f"Genera {count} {item_type} para {location} el día {date}"
+    user_message = f"Generate {count} {item_type} for {location} on {date}"
 
     structured = get_model().with_structured_output(response_model)
     result: HotelCandidatesResponse | ActivityCandidatesResponse = structured.invoke([  # type: ignore[assignment]
@@ -141,37 +150,41 @@ def _call_llm_for_candidates(
 
 @tool("propose_activities", return_direct=False)
 def propose_activities(
-    trip_id: int, day_index: int, n: int = DEFAULT_CANDIDATE_COUNT
+    trip_id: int, day_index: int, n: int = DEFAULT_CANDIDATE_COUNT, lang: str = "en"
 ) -> dict[str, Any]:
-    """Propone actividades turísticas para un día específico del viaje.
-    Úsala cuando el usuario pida explícitamente actividades, planes o qué hacer
-    en un día concreto (e.g. "propón actividades para el día 3").
+    """Propose tourist activities for a specific day of the trip.
+    Call this whenever the user asks for activity ideas, alternatives, plans or
+    things to do on a day — regardless of the language used.
+    NEVER list activities as plain text; always call this tool instead.
 
     Args:
         trip_id: ID del viaje
-        day_index: Número del día (1-based)
-        n: Cantidad de actividades a generar
+        day_index: Day number (1-based)
+        n: Number of activities to generate
+        lang: Language code for the response (e.g. 'en', 'es')
     """
     date, location = _prepare_day_context(trip_id, day_index)
-    candidates = _call_llm_for_candidates("propose_activities", location, date, n)
+    candidates = _call_llm_for_candidates("propose_activities", location, date, n, lang)
     return {"task": "propose_activities", "day": date, "location": location, "candidates": candidates}
 
 
 @tool("propose_hotels", return_direct=False)
 def propose_hotels(
-    trip_id: int, day_index: int, n: int = DEFAULT_CANDIDATE_COUNT
+    trip_id: int, day_index: int, n: int = DEFAULT_CANDIDATE_COUNT, lang: str = "en"
 ) -> dict[str, Any]:
-    """Propone opciones de alojamiento para un día específico del viaje.
-    Úsala cuando el usuario pida explícitamente hoteles o alojamiento
-    para un día concreto (e.g. "busca hoteles para el día 2").
+    """Propose hotel options for a specific day of the trip.
+    Call this whenever the user asks for hotel ideas, alternatives or accommodation
+    on a day — regardless of the language used.
+    NEVER list hotels as plain text; always call this tool instead.
 
     Args:
         trip_id: ID del viaje
-        day_index: Número del día (1-based)
-        n: Cantidad de hoteles a generar
+        day_index: Day number (1-based)
+        n: Number of hotels to generate
+        lang: Language code for the response (e.g. 'en', 'es')
     """
     date, location = _prepare_day_context(trip_id, day_index)
-    candidates = _call_llm_for_candidates("propose_hotels", location, date, n)
+    candidates = _call_llm_for_candidates("propose_hotels", location, date, n, lang)
     return {"task": "propose_hotels", "day": date, "location": location, "candidates": candidates}
 
 
@@ -344,10 +357,12 @@ def hybrid_chat_stream(
     # Build day context if scoped to a specific day
     day_context = ""
     day_detail_block = ""
+    resolved_day_index: int | None = None
     if day_id is not None:
         try:
             day_info = dal.get_day_compact(day_id)
             day_index = day_info.get("day_index")
+            resolved_day_index = day_index
             day_date = day_info.get("date") or "?"
             hotel = day_info.get("hotel") or {}
             activities = day_info.get("activities") or []
@@ -406,10 +421,12 @@ def hybrid_chat_stream(
         "Eres un asistente conversacional para planificación de viajes. "
         + day_context
         + "Responde con naturalidad a preguntas y comentarios. "
-        "Usa las herramientas disponibles SOLO cuando el usuario pida explícitamente "
-        "propuestas de actividades, hoteles, el presupuesto o un resumen del viaje. "
-        "Si el usuario pregunta sobre distancias, horarios, curiosidades u otras cosas, "
-        "responde en texto directamente sin llamar herramientas.\n\n"
+        "REGLAS DE USO DE HERRAMIENTAS:\n"
+        "- Propuestas/alternativas/ideas de actividades o planes → llama SIEMPRE a propose_activities. Nunca listes actividades en texto plano.\n"
+        "- Propuestas/alternativas/ideas de hoteles o alojamiento → llama SIEMPRE a propose_hotels. Nunca listes hoteles en texto plano.\n"
+        "- Preguntas sobre presupuesto o costes → llama a estimate_budget.\n"
+        "- Petición de resumen del viaje → llama a summarize_trip.\n"
+        "- Cualquier otra pregunta (curiosidades, distancias, horarios, etc.) → responde en texto directamente.\n\n"
         "CONTEXTO DEL VIAJE:\n"
         f"Trip ID: {trip_id}\n"
         f"Nombre: {trip.get('name')}\n"
@@ -447,6 +464,9 @@ def hybrid_chat_stream(
                 return
             tool_args = dict(call.get("args") or {})
             tool_args.setdefault("trip_id", trip_id)
+            if resolved_day_index is not None:
+                tool_args.setdefault("day_index", resolved_day_index)
+            tool_args.setdefault("lang", _detect_lang(message))
             result = tool_impl.invoke(tool_args)
             _append_history(tid, "user", message)
             _append_history(tid, "assistant", f"[tool:{tool_name}]")

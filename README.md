@@ -4,6 +4,8 @@ A personal AI travel planning workspace. Plan complete trips day by day — hote
 
 Runs entirely on your machine. No account, no subscription, no data leaving your device.
 
+![Trip Planner workspace](docs/screenshots/trips.png)
+
 ---
 
 ## What it does
@@ -20,6 +22,10 @@ Trip Planner gives you a structured workspace to build and manage travel itinera
 - A live budget breakdown: hotels, activities, general items, grand total
 - A calendar grid that shows the whole trip at a glance
 - PDF and CSV export for offline use or sharing
+
+![Trip overview with calendar grid](docs/screenshots/trip.png)
+
+![Day detail with hotel and activities](docs/screenshots/day.png)
 
 ---
 
@@ -41,6 +47,10 @@ The AI is optional and assistive. It never books anything, never overwrites your
 
 The AI learns destination context as you chat and reuses it in future responses.
 
+![Trip-level chat generating a narrative summary](docs/screenshots/trip%20-%20chat.png)
+
+![Day-level chat suggesting activities to add](docs/screenshots/day%20-%20chat.png)
+
 ---
 
 ## Open by design
@@ -51,6 +61,8 @@ Trip Planner does not try to own your data or lock you into its ecosystem.
 - **Import JSON from any AI** — generate an itinerary in ChatGPT or Claude, paste the JSON into the import panel, preview it, and apply it
 - **Export to PDF or CSV** at any time — the data is yours
 - **Google Maps links** are generated automatically for hotels and activities, and a full directions URL is built for the whole route
+
+![PDF export](docs/screenshots/pdf.png)
 
 ---
 
@@ -67,6 +79,8 @@ plan_day(id, 2, ...)      → day 2: ...
 ...
 export_trip(id)           → PDF download URL
 ```
+
+![MCP agent building a trip from Claude Code](docs/screenshots/agent.png)
 
 **Setup:** run `/mcp-trips` inside Claude Code for guided configuration. See [`agent/README.md`](agent/README.md) for full details.
 

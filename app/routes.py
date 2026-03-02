@@ -500,6 +500,8 @@ def api_update_day(day_id: int):
             day.date = parse_date(payload.get("date"))
         for attr in [
             "hotel_name",
+            "hotel_location",
+            "hotel_description",
             "hotel_reservation_id",
             "hotel_price",
             "hotel_link",
@@ -517,7 +519,14 @@ def api_update_day(day_id: int):
                     value = parse_int(value, min_value=0)
                 elif attr == "distance_minutes":
                     value = parse_int(value, min_value=0, max_value=59)
-                elif attr in {"hotel_name", "hotel_reservation_id", "hotel_link", "hotel_maps_link"}:
+                elif attr in {
+                    "hotel_name",
+                    "hotel_location",
+                    "hotel_description",
+                    "hotel_reservation_id",
+                    "hotel_link",
+                    "hotel_maps_link",
+                }:
                     value = optional_str(value)
                 elif attr == "hotel_cancelable":
                     value = parse_bool(value)

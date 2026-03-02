@@ -7,7 +7,9 @@ from typing import Any
 
 import httpx
 
-from .schemas import ActivityInput, CreateTripInput, HotelInput, PlanDayInput, UpdateTripInput
+import urllib.parse
+
+from .schemas import ActivityInput, CreateTripInput, GeneralItemInput, HotelInput, PlanDayInput, UpdateTripInput
 
 API_BASE = os.environ.get("TRIP_API_URL", "http://localhost:5000")
 _TIMEOUT = 30.0
@@ -50,6 +52,14 @@ def _resolve_day_id(trip_id: int, day_number: int) -> int:
     return days[day_number - 1]["id"]
 
 
+def _maps_url(name: str | None, location: str | None) -> str | None:
+    """Generate a Google Maps search URL from name and location."""
+    if not name or not location:
+        return None
+    query = f"{name}, {location}"
+    return "https://www.google.com/maps/search/?api=1&query=" + urllib.parse.quote(query)
+
+
 def _summarise_trip(trip: dict[str, Any]) -> dict[str, Any]:
     """Return a lightweight trip summary (no raw day/activity lists)."""
     days: list[dict] = trip.get("days", [])
@@ -57,6 +67,7 @@ def _summarise_trip(trip: dict[str, Any]) -> dict[str, Any]:
         (d.get("hotel_price") or 0) + sum(a.get("price") or 0 for a in d.get("activities", []))
         for d in days
     )
+    total_cost += sum(gi.get("price") or 0 for gi in trip.get("general_items", []))
     return {
         "id": trip["id"],
         "name": trip["name"],
@@ -81,11 +92,15 @@ def _enrich_trip(trip: dict[str, Any]) -> dict[str, Any]:
         total_hotel += day.get("hotel_price") or 0
         total_activities += sum(a.get("price") or 0 for a in day.get("activities", []))
 
+    general_items: list[dict] = trip.get("general_items", [])
+    total_general = sum(gi.get("price") or 0 for gi in general_items)
+
     trip["days"] = days
     trip["kpis"] = {
-        "total_eur": round(total_hotel + total_activities, 2),
+        "total_eur": round(total_hotel + total_activities + total_general, 2),
         "hotel_eur": round(total_hotel, 2),
         "activities_eur": round(total_activities, 2),
+        "general_items_eur": round(total_general, 2),
         "day_count": len(days),
         "activity_count": sum(len(d.get("activities", [])) for d in days),
     }
@@ -224,6 +239,9 @@ def _set_hotel_by_id(day_id: int, hotel: HotelInput) -> dict[str, Any]:
         payload["hotel_link"] = hotel.link
     if hotel.cancelable is not None:
         payload["hotel_cancelable"] = hotel.cancelable
+    maps_link = _maps_url(hotel.name, hotel.location)
+    if maps_link is not None:
+        payload["hotel_maps_link"] = maps_link
     return _put(f"/api/days/{day_id}", payload)
 
 
@@ -241,4 +259,36 @@ def _activity_payload(a: ActivityInput) -> dict[str, Any]:
         payload["link"] = a.link
     if a.cancelable is not None:
         payload["cancelable"] = a.cancelable
+    maps_link = _maps_url(a.name, a.location)
+    if maps_link is not None:
+        payload["maps_link"] = maps_link
     return payload
+
+
+def add_general_item(trip_id: int, item: GeneralItemInput) -> dict[str, Any]:
+    """Add a trip-level general item (flight, car rental, insurance, etc.)."""
+    payload: dict[str, Any] = {"name": item.name}
+    if item.price is not None:
+        payload["price"] = item.price
+    if item.description is not None:
+        payload["description"] = item.description
+    if item.reservation_id is not None:
+        payload["reservation_id"] = item.reservation_id
+    if item.link is not None:
+        payload["link"] = item.link
+    if item.cancelable is not None:
+        payload["cancelable"] = item.cancelable
+    return _post(f"/api/trips/{trip_id}/general-items", payload)
+
+
+def remove_general_item(trip_id: int, item_name: str) -> dict[str, Any]:
+    """Remove a general item by name from a trip."""
+    items: list[dict] = _get(f"/api/trips/{trip_id}/general-items")  # type: ignore[assignment]
+    match = next((i for i in items if i["name"].lower() == item_name.lower()), None)
+    if match is None:
+        raise ValueError(
+            f"General item '{item_name}' not found. "
+            f"Available: {[i['name'] for i in items]}"
+        )
+    _delete(f"/api/general-items/{match['id']}")
+    return {"removed": match["name"], "trip_id": trip_id}
