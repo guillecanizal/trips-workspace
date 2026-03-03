@@ -115,11 +115,7 @@ def calculate_trip_stats(days: list[Day], general_items: list[GeneralItem]):
         value
         for value in [
             *(day.hotel_price for day in days),
-            *(
-                activity.price
-                for day in days
-                for activity in day.activities
-            ),
+            *(activity.price for day in days for activity in day.activities),
             *(item.price for item in general_items),
         ]
         if value is not None
@@ -297,9 +293,7 @@ def load_latest_ai_log(trip_id: int) -> dict[str, str] | None:
     logs_dir = Path("logs") / f"trip_{trip_id}"
     if not logs_dir.exists():
         return None
-    response_files = sorted(
-        logs_dir.glob("*_response.json"), key=lambda p: p.name, reverse=True
-    )
+    response_files = sorted(logs_dir.glob("*_response.json"), key=lambda p: p.name, reverse=True)
     if not response_files:
         return None
     response_file = response_files[0]
@@ -348,9 +342,7 @@ def api_create_trip():
     if not name:
         abort(400, "Trip name is required")
 
-    start_date, end_date = require_dates(
-        payload.get("start_date"), payload.get("end_date")
-    )
+    start_date, end_date = require_dates(payload.get("start_date"), payload.get("end_date"))
 
     session = get_session()
     try:
@@ -463,9 +455,7 @@ def api_create_day(trip_id: int):
             hotel_cancelable=parse_bool(payload.get("hotel_cancelable")),
             distance_km=parse_float(payload.get("distance_km")),
             distance_hours=parse_int(payload.get("distance_hours"), min_value=0),
-            distance_minutes=parse_int(
-                payload.get("distance_minutes"), min_value=0, max_value=59
-            ),
+            distance_minutes=parse_int(payload.get("distance_minutes"), min_value=0, max_value=59),
         )
         session.add(day)
         session.commit()
@@ -859,9 +849,7 @@ def view_day_page(trip_id: int, day_id: int):
             trip.days,
             key=lambda d: (d.date or date.max, d.id),
         )
-        day_index = next(
-            (i + 1 for i, d in enumerate(ordered_days) if d.id == day_id), 0
-        )
+        day_index = next((i + 1 for i, d in enumerate(ordered_days) if d.id == day_id), 0)
         return render_template(
             "pages/day_detail.html",
             trip=trip,
@@ -885,9 +873,7 @@ def partial_trip_overview(trip_id: int):
         trip = session.get(Trip, trip_id)
         if not trip:
             abort(404, "Trip not found")
-        ordered_days = sorted(
-            trip.days, key=lambda d: (d.date or date.max, d.id)
-        )
+        ordered_days = sorted(trip.days, key=lambda d: (d.date or date.max, d.id))
         general_items = sorted(
             trip.general_items,
             key=lambda item: ((item.name or "").lower(), item.id),
@@ -923,9 +909,7 @@ def partial_day_activities(day_id: int):
         day = session.get(Day, day_id)
         if not day:
             abort(404, "Day not found")
-        return render_template(
-            "partials/day_activities.html", day=day, activities=day.activities
-        )
+        return render_template("partials/day_activities.html", day=day, activities=day.activities)
     finally:
         session.close()
 
@@ -957,9 +941,7 @@ def partial_kpis(trip_id: int):
         trip = session.get(Trip, trip_id)
         if not trip:
             abort(404, "Trip not found")
-        ordered_days = sorted(
-            trip.days, key=lambda d: (d.date or date.max, d.id)
-        )
+        ordered_days = sorted(trip.days, key=lambda d: (d.date or date.max, d.id))
         general_items = sorted(
             trip.general_items,
             key=lambda item: ((item.name or "").lower(), item.id),
@@ -1032,7 +1014,7 @@ def export_trip_csv(trip_id: int):
         csv_content = generate_trip_csv(trip, ordered_days, general_items, stats)
 
         # Prepare file for download
-        buffer = BytesIO(csv_content.encode('utf-8-sig'))  # UTF-8 with BOM for Excel compatibility
+        buffer = BytesIO(csv_content.encode("utf-8-sig"))  # UTF-8 with BOM for Excel compatibility
 
         base_name = (trip.name or "trip").strip().lower()
         base_name = re.sub(r"[^a-z0-9]+", "-", base_name) or "trip"
@@ -1046,9 +1028,6 @@ def export_trip_csv(trip_id: int):
         )
     finally:
         session.close()
-
-
-
 
 
 @bp.post("/agent/stream")
@@ -1068,20 +1047,21 @@ def agent_chat_stream():
     thread_id = flask_session.get(thread_key)
     if not thread_id:
         import uuid
+
         thread_id = str(uuid.uuid4())
         flask_session[thread_key] = thread_id
 
     def generate():
         try:
-            for event in hybrid_chat_stream(
-                trip_id, message, thread_id=thread_id, day_id=day_id
-            ):
+            for event in hybrid_chat_stream(trip_id, message, thread_id=thread_id, day_id=day_id):
                 yield f"data: {json.dumps(event)}\n\n"
         except Exception as exc:
             yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
         yield "data: [DONE]\n\n"
 
-    return current_app.response_class(stream_with_context(generate()), mimetype="text/event-stream")
+    return current_app.response_class(
+        stream_with_context(generate()), mimetype="text/event-stream"
+    )
 
 
 @bp.delete("/agent/history/<int:trip_id>")
@@ -1285,16 +1265,14 @@ def generate_trip_stream(trip_id: int):
             abort(404, "Trip not found")
 
         # Sort days to ensure order
-        days_list = sorted(trip.days, key=lambda d: (d.date or date.max))
+        days_list = sorted(trip.days, key=lambda d: d.date or date.max)
         trips_dates = [d.date for d in days_list if d.date]
 
         def generate():
             try:
                 # Use the new streaming generator
                 iterator = stream_itinerary_generation(
-                    trip_name=trip.name,
-                    description=trip.description,
-                    days=trips_dates
+                    trip_name=trip.name, description=trip.description, days=trips_dates
                 )
                 for chunk in iterator:
                     # Send chunk as a JSON object in an SSE event
@@ -1307,7 +1285,7 @@ def generate_trip_stream(trip_id: int):
                 err_payload = json.dumps({"error": str(e)})
                 yield f"data: {err_payload}\n\n"
 
-        return current_app.response_class(generate(), mimetype='text/event-stream')
+        return current_app.response_class(generate(), mimetype="text/event-stream")
     finally:
         session.close()
 
@@ -1470,9 +1448,7 @@ def update_day_page(day_id: int):
         day.hotel_name = optional_str(request.form.get("hotel_name"))
         day.hotel_location = optional_str(request.form.get("hotel_location"))
         day.hotel_description = optional_str(request.form.get("hotel_description"))
-        day.hotel_reservation_id = optional_str(
-            request.form.get("hotel_reservation_id")
-        )
+        day.hotel_reservation_id = optional_str(request.form.get("hotel_reservation_id"))
         day.hotel_price = parse_float(request.form.get("hotel_price"))
         day.hotel_link = optional_str(request.form.get("hotel_link"))
         day.hotel_maps_link = optional_str(request.form.get("hotel_maps_link"))
@@ -1539,9 +1515,7 @@ def delete_day_page(day_id: int):
         session.commit()
         if request.headers.get("HX-Request"):
             resp = make_response("")
-            resp.headers["HX-Redirect"] = url_for(
-                "main.view_trip_page", trip_id=trip_id
-            )
+            resp.headers["HX-Redirect"] = url_for("main.view_trip_page", trip_id=trip_id)
             return resp
         return redirect(url_for("main.view_trip_page", trip_id=trip_id))
     finally:
@@ -1659,6 +1633,8 @@ def delete_activity_page(activity_id: int):
         return redirect(url_for("main.view_trip_page", trip_id=trip_id))
     finally:
         session.close()
+
+
 @bp.get("/trips/<int:trip_id>/maps-itinerary")
 def itinerary_maps_url(trip_id: int):
     session = get_session()
@@ -1689,7 +1665,9 @@ def itinerary_maps_url(trip_id: int):
         }
         maps_url = build_itinerary_maps_url(payload_like)
         if not maps_url:
-            return jsonify({"url": None, "error": "Need at least 2 days with a location (hotel or activity)"}), 404
+            return jsonify(
+                {"url": None, "error": "Need at least 2 days with a location (hotel or activity)"}
+            ), 404
         return jsonify({"url": maps_url})
     finally:
         session.close()

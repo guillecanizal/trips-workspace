@@ -24,14 +24,14 @@ from reportlab.platypus import (
 # ---------------------------------------------------------------------------
 # Classic Business Palette (Traditional & Sober)
 # ---------------------------------------------------------------------------
-C_NAVY_DARK  = colors.HexColor("#1E293B")   # Main headers, professional & deep
-C_NAVY_LIGHT = colors.HexColor("#334155")   # Sub-headers
-C_STEEL      = colors.HexColor("#94A3B8")   # Dividers, accents
-C_GREY_BODY  = colors.HexColor("#334155")   # Main text
-C_GREY_META  = colors.HexColor("#64748B")   # Metadata / Captions
-C_BG_SOFT    = colors.HexColor("#F8FAFC")   # Soft background tint for stats
-C_WHITE      = colors.white
-C_LINK       = colors.HexColor("#2563EB")   # Standard professional blue link
+C_NAVY_DARK = colors.HexColor("#1E293B")  # Main headers, professional & deep
+C_NAVY_LIGHT = colors.HexColor("#334155")  # Sub-headers
+C_STEEL = colors.HexColor("#94A3B8")  # Dividers, accents
+C_GREY_BODY = colors.HexColor("#334155")  # Main text
+C_GREY_META = colors.HexColor("#64748B")  # Metadata / Captions
+C_BG_SOFT = colors.HexColor("#F8FAFC")  # Soft background tint for stats
+C_WHITE = colors.white
+C_LINK = colors.HexColor("#2563EB")  # Standard professional blue link
 
 PAGE_W, PAGE_H = A4
 MARGIN = 20 * mm
@@ -41,78 +41,151 @@ INNER_W = PAGE_W - 2 * MARGIN
 # Styles
 # ---------------------------------------------------------------------------
 
+
 def _S() -> dict[str, ParagraphStyle]:
     return {
         # Cover
         "cover_title": ParagraphStyle(
-            "CoverTitle", fontName="Helvetica-Bold", fontSize=26,
-            textColor=C_WHITE, leading=32, spaceAfter=0,
+            "CoverTitle",
+            fontName="Helvetica-Bold",
+            fontSize=26,
+            textColor=C_WHITE,
+            leading=32,
+            spaceAfter=0,
         ),
         "cover_dates": ParagraphStyle(
-            "CoverDates", fontName="Helvetica", fontSize=12,
-            textColor=colors.HexColor("#CBD5E1"), leading=16, spaceAfter=0,
+            "CoverDates",
+            fontName="Helvetica",
+            fontSize=12,
+            textColor=colors.HexColor("#CBD5E1"),
+            leading=16,
+            spaceAfter=0,
         ),
         "cover_desc": ParagraphStyle(
-            "CoverDesc", fontName="Helvetica", fontSize=10,
-            textColor=colors.HexColor("#94A3B8"), leading=14, spaceAfter=0,
+            "CoverDesc",
+            fontName="Helvetica",
+            fontSize=10,
+            textColor=colors.HexColor("#94A3B8"),
+            leading=14,
+            spaceAfter=0,
         ),
         "stat_value": ParagraphStyle(
-            "StatValue", fontName="Helvetica-Bold", fontSize=15,
-            textColor=C_NAVY_DARK, alignment=TA_CENTER, leading=18,
+            "StatValue",
+            fontName="Helvetica-Bold",
+            fontSize=15,
+            textColor=C_NAVY_DARK,
+            alignment=TA_CENTER,
+            leading=18,
         ),
         "stat_label": ParagraphStyle(
-            "StatLabel", fontName="Helvetica", fontSize=8,
-            textColor=C_GREY_META, alignment=TA_CENTER, leading=10,
+            "StatLabel",
+            fontName="Helvetica",
+            fontSize=8,
+            textColor=C_GREY_META,
+            alignment=TA_CENTER,
+            leading=10,
         ),
         # Sections
         "section": ParagraphStyle(
-            "Section", fontName="Helvetica-Bold", fontSize=13,
-            textColor=C_NAVY_DARK, spaceBefore=8, spaceAfter=2,
+            "Section",
+            fontName="Helvetica-Bold",
+            fontSize=13,
+            textColor=C_NAVY_DARK,
+            spaceBefore=8,
+            spaceAfter=2,
         ),
         "day_num": ParagraphStyle(
-            "DayNum", fontName="Helvetica-Bold", fontSize=10,
-            textColor=C_WHITE, leading=14, alignment=TA_CENTER, opacity=0.8,
+            "DayNum",
+            fontName="Helvetica-Bold",
+            fontSize=10,
+            textColor=C_WHITE,
+            leading=14,
+            alignment=TA_CENTER,
+            opacity=0.8,
         ),
         "day_date": ParagraphStyle(
-            "DayDate", fontName="Helvetica-Bold", fontSize=14,
-            textColor=C_WHITE, leading=18, alignment=TA_LEFT,
+            "DayDate",
+            fontName="Helvetica-Bold",
+            fontSize=14,
+            textColor=C_WHITE,
+            leading=18,
+            alignment=TA_LEFT,
         ),
         # Body
         "item_title": ParagraphStyle(
-            "ItemTitle", fontName="Helvetica-Bold", fontSize=11,
-            textColor=C_NAVY_DARK, spaceAfter=1, spaceBefore=4,
+            "ItemTitle",
+            fontName="Helvetica-Bold",
+            fontSize=11,
+            textColor=C_NAVY_DARK,
+            spaceAfter=1,
+            spaceBefore=4,
         ),
         "body": ParagraphStyle(
-            "Body", fontName="Helvetica", fontSize=10,
-            textColor=C_GREY_BODY, leading=14, spaceAfter=1,
+            "Body",
+            fontName="Helvetica",
+            fontSize=10,
+            textColor=C_GREY_BODY,
+            leading=14,
+            spaceAfter=1,
         ),
         "body_indent": ParagraphStyle(
-            "BodyIndent", fontName="Helvetica", fontSize=10,
-            textColor=C_GREY_BODY, leading=14, leftIndent=10, spaceAfter=1,
+            "BodyIndent",
+            fontName="Helvetica",
+            fontSize=10,
+            textColor=C_GREY_BODY,
+            leading=14,
+            leftIndent=10,
+            spaceAfter=1,
         ),
         "meta": ParagraphStyle(
-            "Meta", fontName="Helvetica", fontSize=9,
-            textColor=C_GREY_META, leading=13, spaceAfter=1,
+            "Meta",
+            fontName="Helvetica",
+            fontSize=9,
+            textColor=C_GREY_META,
+            leading=13,
+            spaceAfter=1,
         ),
         "meta_indent": ParagraphStyle(
-            "MetaIndent", fontName="Helvetica", fontSize=9,
-            textColor=C_GREY_META, leading=13, leftIndent=10, spaceAfter=1,
+            "MetaIndent",
+            fontName="Helvetica",
+            fontSize=9,
+            textColor=C_GREY_META,
+            leading=13,
+            leftIndent=10,
+            spaceAfter=1,
         ),
         "link": ParagraphStyle(
-            "Link", fontName="Helvetica", fontSize=9,
-            textColor=C_LINK, leading=13, spaceAfter=1,
+            "Link",
+            fontName="Helvetica",
+            fontSize=9,
+            textColor=C_LINK,
+            leading=13,
+            spaceAfter=1,
         ),
         "link_indent": ParagraphStyle(
-            "LinkIndent", fontName="Helvetica", fontSize=9,
-            textColor=C_LINK, leading=13, leftIndent=10, spaceAfter=1,
+            "LinkIndent",
+            fontName="Helvetica",
+            fontSize=9,
+            textColor=C_LINK,
+            leading=13,
+            leftIndent=10,
+            spaceAfter=1,
         ),
         "badge": ParagraphStyle(
-            "Badge", fontName="Helvetica-Bold", fontSize=7,
-            textColor=C_WHITE, alignment=TA_CENTER,
+            "Badge",
+            fontName="Helvetica-Bold",
+            fontSize=7,
+            textColor=C_WHITE,
+            alignment=TA_CENTER,
         ),
         "act_section": ParagraphStyle(
-            "ActSection", fontName="Helvetica-Bold", fontSize=9,
-            textColor=C_NAVY_LIGHT, leading=12, spaceBefore=4, spaceAfter=2,
+            "ActSection",
+            fontName="Helvetica-Bold",
+            fontSize=9,
+            textColor=C_NAVY_LIGHT,
+            leading=12,
+            spaceBefore=4,
+            spaceAfter=2,
             letterSpacing=1,
         ),
     }
@@ -122,17 +195,26 @@ def _S() -> dict[str, ParagraphStyle]:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _hr_steel(thickness: float = 0.8) -> HRFlowable:
     return HRFlowable(
-        width="100%", thickness=thickness, color=C_STEEL,
-        spaceBefore=3, spaceAfter=3,
+        width="100%",
+        thickness=thickness,
+        color=C_STEEL,
+        spaceBefore=3,
+        spaceAfter=3,
     )
+
 
 def _hr_grey(thickness: float = 0.4) -> HRFlowable:
     return HRFlowable(
-        width="100%", thickness=thickness, color=colors.HexColor("#E2E8F0"),
-        spaceBefore=2, spaceAfter=2,
+        width="100%",
+        thickness=thickness,
+        color=colors.HexColor("#E2E8F0"),
+        spaceBefore=2,
+        spaceAfter=2,
     )
+
 
 def _link_para(label: str, url: str | None, style: ParagraphStyle) -> Paragraph | None:
     if not url:
@@ -140,56 +222,75 @@ def _link_para(label: str, url: str | None, style: ParagraphStyle) -> Paragraph 
     safe = url.replace("&", "&amp;")
     return Paragraph(f'<a href="{safe}" color="#2563EB"><u>{label}</u></a>', style)
 
+
 def _format_price(price: float | None) -> str:
     if price is None:
         return ""
     return f"{price:,.2f} EUR"
 
+
 def _format_date_long(d: Any) -> str:
     if not d:
         return "Date TBC"
     if hasattr(d, "weekday"):
-        days   = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
-        months = ["January","February","March","April","May","June",
-                  "July","August","September","October","November","December"]
-        return f"{days[d.weekday()]}, {months[d.month-1]} {d.day}, {d.year}"
+        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        months = [
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December",
+        ]
+        return f"{days[d.weekday()]}, {months[d.month - 1]} {d.day}, {d.year}"
     return str(d)
+
 
 # --- Type badge (Sober tones) ---
 _ITEM_TYPES: list[tuple[list[str], str, str]] = [
-    (["vuelo","flight","avion","billete","air"],         "FLIGHT",    "#334155"),
-    (["tren","train","ave","renfe","rail"],               "TRAIN",     "#334155"),
-    (["bus","autobus","transfer","shuttle"],              "BUS",       "#334155"),
-    (["coche","car","rental","alquiler"],                 "CAR",       "#334155"),
-    (["barco","ferry","crucero","boat","ship"],           "FERRY",     "#334155"),
-    (["seguro","insurance","cobertura"],                  "INSURANCE", "#475569"),
-    (["hotel","hostal","alojamiento","airbnb"],           "HOTEL",     "#1E293B"),
-    (["entrada","museum","museu","parque","theme park"],  "TICKET",    "#1E293B"),
-    (["restaurante","restaurant","cena","comida","tapas"],"DINING",    "#64748B"),
-    (["visa","pasaporte","passport"],                     "DOCS",      "#475569"),
+    (["vuelo", "flight", "avion", "billete", "air"], "FLIGHT", "#334155"),
+    (["tren", "train", "ave", "renfe", "rail"], "TRAIN", "#334155"),
+    (["bus", "autobus", "transfer", "shuttle"], "BUS", "#334155"),
+    (["coche", "car", "rental", "alquiler"], "CAR", "#334155"),
+    (["barco", "ferry", "crucero", "boat", "ship"], "FERRY", "#334155"),
+    (["seguro", "insurance", "cobertura"], "INSURANCE", "#475569"),
+    (["hotel", "hostal", "alojamiento", "airbnb"], "HOTEL", "#1E293B"),
+    (["entrada", "museum", "museu", "parque", "theme park"], "TICKET", "#1E293B"),
+    (["restaurante", "restaurant", "cena", "comida", "tapas"], "DINING", "#64748B"),
+    (["visa", "pasaporte", "passport"], "DOCS", "#475569"),
 ]
 
 _ACTIVITY_TYPES: list[tuple[list[str], str, str]] = [
-    (["museo","museum","galeria","arte","art","gallery"], "MUSEUM",   "#1E293B"),
-    (["playa","beach","mar","ocean"],                     "BEACH",    "#334155"),
-    (["hiking","senderismo","montaña","trail","trek"],    "HIKING",   "#334155"),
-    (["restaurante","cena","dinner","comida","tapas"],    "DINING",   "#475569"),
-    (["bar","copa","cerveza","beer","vino","wine"],       "LEISURE",  "#475569"),
-    (["catedral","iglesia","church","temple","mezquita"], "CULTURE",  "#1E293B"),
-    (["castillo","palace","palacio","fortaleza"],         "CULTURE",  "#1E293B"),
-    (["compras","shopping","mercado","market"],           "SHOPPING", "#475569"),
-    (["concierto","teatro","theatre","espectaculo"],      "EVENTS",   "#475569"),
-    (["spa","relax","masaje","yoga"],                     "WELLNESS", "#1E293B"),
-    (["tour","excursion","guia","guide"],                 "TOUR",     "#334155"),
-    (["aeropuerto","airport","tren","train","transfer"],  "TRANSIT",  "#334155"),
+    (["museo", "museum", "galeria", "arte", "art", "gallery"], "MUSEUM", "#1E293B"),
+    (["playa", "beach", "mar", "ocean"], "BEACH", "#334155"),
+    (["hiking", "senderismo", "montaña", "trail", "trek"], "HIKING", "#334155"),
+    (["restaurante", "cena", "dinner", "comida", "tapas"], "DINING", "#475569"),
+    (["bar", "copa", "cerveza", "beer", "vino", "wine"], "LEISURE", "#475569"),
+    (["catedral", "iglesia", "church", "temple", "mezquita"], "CULTURE", "#1E293B"),
+    (["castillo", "palace", "palacio", "fortaleza"], "CULTURE", "#1E293B"),
+    (["compras", "shopping", "mercado", "market"], "SHOPPING", "#475569"),
+    (["concierto", "teatro", "theatre", "espectaculo"], "EVENTS", "#475569"),
+    (["spa", "relax", "masaje", "yoga"], "WELLNESS", "#1E293B"),
+    (["tour", "excursion", "guia", "guide"], "TOUR", "#334155"),
+    (["aeropuerto", "airport", "tren", "train", "transfer"], "TRANSIT", "#334155"),
 ]
 
-def _infer_badge(name: str, table: list[tuple[list[str], str, str]], fallback_label: str = "ACTIVITY") -> tuple[str, str]:
+
+def _infer_badge(
+    name: str, table: list[tuple[list[str], str, str]], fallback_label: str = "ACTIVITY"
+) -> tuple[str, str]:
     lower = name.lower()
     for keywords, label, color in table:
         if any(kw in lower for kw in keywords):
             return label, color
     return fallback_label, "#64748B"
+
 
 def _badge_cell(label: str, bg_hex: str, S: dict[str, ParagraphStyle]) -> Table:
     """A small coloured pill label."""
@@ -197,19 +298,24 @@ def _badge_cell(label: str, bg_hex: str, S: dict[str, ParagraphStyle]) -> Table:
         [[Paragraph(label, S["badge"])]],
         colWidths=[22 * mm],
     )
-    t.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, -1), colors.HexColor(bg_hex)),
-        ("TOPPADDING",    (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
-    ]))
+    t.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(bg_hex)),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ]
+        )
+    )
     return t
 
 
 # ---------------------------------------------------------------------------
 # Cover block
 # ---------------------------------------------------------------------------
+
 
 def _cover_block(trip: Any, stats: dict[str, Any], S: dict[str, ParagraphStyle]) -> list[Any]:
     story: list[Any] = []
@@ -227,15 +333,19 @@ def _cover_block(trip: Any, stats: dict[str, Any], S: dict[str, ParagraphStyle])
         header_content.append([Paragraph(desc, S["cover_desc"])])
 
     header_table = Table(header_content, colWidths=[INNER_W])
-    header_table.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, -1), C_NAVY_DARK),
-        ("TOPPADDING",    (0, 0), (0, 0),   16),
-        ("BOTTOMPADDING", (0, -1), (0, -1), 16),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 18),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 18),
-        ("TOPPADDING",    (0, 1), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -2), 4),
-    ]))
+    header_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), C_NAVY_DARK),
+                ("TOPPADDING", (0, 0), (0, 0), 16),
+                ("BOTTOMPADDING", (0, -1), (0, -1), 16),
+                ("LEFTPADDING", (0, 0), (-1, -1), 18),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 18),
+                ("TOPPADDING", (0, 1), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -2), 4),
+            ]
+        )
+    )
     story.append(header_table)
 
     # --- Stats bar ---
@@ -245,23 +355,29 @@ def _cover_block(trip: Any, stats: dict[str, Any], S: dict[str, ParagraphStyle])
     def _stat(val: str, lbl: str) -> list[Paragraph]:
         return [Paragraph(val, S["stat_value"]), Paragraph(lbl.upper(), S["stat_label"])]
 
-    stats_data = [[
-        _stat(str(stats.get("day_count", 0)),              "days"),
-        _stat(str(stats.get("activity_count", 0)),         "activities"),
-        _stat(f"{stats.get('total_distance_km') or 0} km", "distance"),
-        _stat(total_cost,                                   "estimated total"),
-    ]]
+    stats_data = [
+        [
+            _stat(str(stats.get("day_count", 0)), "days"),
+            _stat(str(stats.get("activity_count", 0)), "activities"),
+            _stat(f"{stats.get('total_distance_km') or 0} km", "distance"),
+            _stat(total_cost, "estimated total"),
+        ]
+    ]
     stats_table = Table(stats_data, colWidths=[stat_col_w] * 4)
-    stats_table.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, -1), C_BG_SOFT),
-        ("TOPPADDING",    (0, 0), (-1, -1), 12),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-        ("LINEAFTER",     (0, 0), (2, 0),   0.5, colors.HexColor("#E2E8F0")),
-        ("ALIGN",         (0, 0), (-1, -1), "CENTER"),
-        ("BOTTOMPADDING", (0, 0), (3, 0), 12),
-        ("LINEBELOW",     (0, 0), (-1, -1),  1, C_STEEL),
-    ]))
+    stats_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), C_BG_SOFT),
+                ("TOPPADDING", (0, 0), (-1, -1), 12),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LINEAFTER", (0, 0), (2, 0), 0.5, colors.HexColor("#E2E8F0")),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("BOTTOMPADDING", (0, 0), (3, 0), 12),
+                ("LINEBELOW", (0, 0), (-1, -1), 1, C_STEEL),
+            ]
+        )
+    )
     story.append(stats_table)
     story.append(Spacer(1, 10 * mm))
     return story
@@ -271,33 +387,39 @@ def _cover_block(trip: Any, stats: dict[str, Any], S: dict[str, ParagraphStyle])
 # Day header
 # ---------------------------------------------------------------------------
 
+
 def _day_header(index: int, day: Any, S: dict[str, ParagraphStyle]) -> Table:
-    num_str  = f"DAY {index:02d}"
+    num_str = f"DAY {index:02d}"
     date_str = _format_date_long(day.date)
 
     t = Table(
         [[Paragraph(num_str, S["day_num"]), Paragraph(date_str, S["day_date"])]],
         colWidths=[20 * mm, INNER_W - 20 * mm],
     )
-    t.setStyle(TableStyle([
-        ("BACKGROUND",    (0, 0), (-1, -1), C_NAVY_DARK),
-        ("TOPPADDING",    (0, 0), (-1, -1), 8),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 12),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 12),
-        # Day number column: no side padding so it centres cleanly
-        ("LEFTPADDING",   (0, 0), (0, 0),   0),
-        ("RIGHTPADDING",  (0, 0), (0, 0),   0),
-        ("ALIGN",         (0, 0), (0, 0),   "CENTER"),
-        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-        ("LINEBELOW",     (0, 0), (-1, -1),  1, colors.HexColor("#475569")),
-    ]))
+    t.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), C_NAVY_DARK),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ("LEFTPADDING", (0, 0), (-1, -1), 12),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+                # Day number column: no side padding so it centres cleanly
+                ("LEFTPADDING", (0, 0), (0, 0), 0),
+                ("RIGHTPADDING", (0, 0), (0, 0), 0),
+                ("ALIGN", (0, 0), (0, 0), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LINEBELOW", (0, 0), (-1, -1), 1, colors.HexColor("#475569")),
+            ]
+        )
+    )
     return t
 
 
 # ---------------------------------------------------------------------------
 # Item blocks
 # ---------------------------------------------------------------------------
+
 
 def _general_item_block(item: Any, S: dict[str, ParagraphStyle]) -> list[Any]:
     label, bg = _infer_badge(item.name, _ITEM_TYPES, "ITEM")
@@ -306,14 +428,18 @@ def _general_item_block(item: Any, S: dict[str, ParagraphStyle]) -> list[Any]:
     badge = _badge_cell(label, bg, S)
     name_p = Paragraph(f"<b>{item.name}</b>", S["item_title"])
     row = Table([[badge, name_p]], colWidths=[22 * mm, INNER_W - 22 * mm])
-    row.setStyle(TableStyle([
-        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING",    (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
-        ("LEFTPADDING",   (1, 0), (1, 0),   6),
-    ]))
+    row.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("LEFTPADDING", (1, 0), (1, 0), 6),
+            ]
+        )
+    )
     elems.append(row)
 
     if item.description:
@@ -347,14 +473,18 @@ def _hotel_block(day: Any, S: dict[str, ParagraphStyle]) -> list[Any]:
     badge = _badge_cell("HOTEL", "#1E293B", S)
     name_p = Paragraph(f"<b>{hotel_name}</b>", S["item_title"])
     row = Table([[badge, name_p]], colWidths=[22 * mm, INNER_W - 22 * mm])
-    row.setStyle(TableStyle([
-        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING",    (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
-        ("LEFTPADDING",   (1, 0), (1, 0),   6),
-    ]))
+    row.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("LEFTPADDING", (1, 0), (1, 0), 6),
+            ]
+        )
+    )
     elems.append(row)
 
     if day.hotel_location:
@@ -405,14 +535,18 @@ def _activity_block(activity: Any, S: dict[str, ParagraphStyle]) -> list[Any]:
     badge = _badge_cell(label, bg, S)
     name_p = Paragraph(f"<b>{activity.name}</b>", S["item_title"])
     row = Table([[badge, name_p]], colWidths=[22 * mm, INNER_W - 22 * mm])
-    row.setStyle(TableStyle([
-        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING",    (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ("LEFTPADDING",   (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING",  (0, 0), (-1, -1), 0),
-        ("LEFTPADDING",   (1, 0), (1, 0),   6),
-    ]))
+    row.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("LEFTPADDING", (1, 0), (1, 0), 6),
+            ]
+        )
+    )
     elems.append(row)
 
     if activity.location:
@@ -442,13 +576,16 @@ def _activity_block(activity: Any, S: dict[str, ParagraphStyle]) -> list[Any]:
 # Destination knowledge block
 # ---------------------------------------------------------------------------
 
+
 def _knowledge_block(knowledge: str, S: dict[str, ParagraphStyle]) -> list[Any]:
     """Render knowledge_general text as labeled paragraphs."""
     elems: list[Any] = [
-        KeepTogether([
-            Paragraph("DESTINATION OVERVIEW", S["act_section"]),
-            _hr_steel(),
-        ]),
+        KeepTogether(
+            [
+                Paragraph("DESTINATION OVERVIEW", S["act_section"]),
+                _hr_steel(),
+            ]
+        ),
     ]
     for line in knowledge.splitlines():
         line = line.strip()
@@ -459,7 +596,7 @@ def _knowledge_block(knowledge: str, S: dict[str, ParagraphStyle]) -> list[Any]:
         if ":" in line:
             colon = line.index(":")
             label = line[:colon].strip()
-            rest = line[colon + 1:].strip()
+            rest = line[colon + 1 :].strip()
             if label and rest:
                 elems.append(Paragraph(f"<b>{label}:</b> {rest}", S["body"]))
                 continue
@@ -471,6 +608,7 @@ def _knowledge_block(knowledge: str, S: dict[str, ParagraphStyle]) -> list[Any]:
 # ---------------------------------------------------------------------------
 # Page footer canvas
 # ---------------------------------------------------------------------------
+
 
 class _FooterCanvas(_RLCanvas):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -505,6 +643,7 @@ class _FooterCanvas(_RLCanvas):
 # Main entry point
 # ---------------------------------------------------------------------------
 
+
 def generate_trip_pdf(
     trip: Any,
     ordered_days: list[Any],
@@ -515,8 +654,10 @@ def generate_trip_pdf(
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        leftMargin=MARGIN, rightMargin=MARGIN,
-        topMargin=MARGIN,  bottomMargin=20 * mm,
+        leftMargin=MARGIN,
+        rightMargin=MARGIN,
+        topMargin=MARGIN,
+        bottomMargin=20 * mm,
         title=trip.name,
         author="Trip Planner",
     )
@@ -529,10 +670,14 @@ def generate_trip_pdf(
 
     # General items
     if general_items:
-        story.append(KeepTogether([
-            Paragraph("TRANSPORT & LOGISTICS OVERVIEW", S["act_section"]),
-            _hr_steel(),
-        ]))
+        story.append(
+            KeepTogether(
+                [
+                    Paragraph("TRANSPORT & LOGISTICS OVERVIEW", S["act_section"]),
+                    _hr_steel(),
+                ]
+            )
+        )
         for item in general_items:
             story.extend(_general_item_block(item, S))
         story.append(Spacer(1, 4 * mm))
@@ -570,8 +715,10 @@ def generate_trip_pdf(
 
     # Build
     try:
+
         class _TitledCanvas(_FooterCanvas):
             pass
+
         _TitledCanvas._doc_title = trip.name  # type: ignore[attr-defined]
         doc.build(story, canvasmaker=_TitledCanvas)
     except Exception:

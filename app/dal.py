@@ -95,9 +95,7 @@ def get_day_compact(day_id: int) -> dict[str, Any]:
             trip.days,
             key=lambda d: (d.date or date.max, d.id),
         )
-        day_index = next(
-            (i + 1 for i, d in enumerate(ordered_days) if d.id == day_id), 0
-        )
+        day_index = next((i + 1 for i, d in enumerate(ordered_days) if d.id == day_id), 0)
         return {
             **_serialize_day(day),
             "day_index": day_index,
@@ -199,23 +197,19 @@ def get_trip_cost_summary(trip_id: int) -> dict[str, Any]:
             act_cost = sum(a.price or 0.0 for a in day.activities)
             total_hotels += hotel_cost
             total_activities += act_cost
-            days_breakdown.append({
-                "date": day.date.isoformat() if day.date else None,
-                "hotel": day.hotel_name,
-                "hotel_cost": hotel_cost,
-                "activities_cost": act_cost,
-                "day_total": hotel_cost + act_cost,
-            })
-        general_items = (
-            session.query(GeneralItem)
-            .filter(GeneralItem.trip_id == trip_id)
-            .all()
-        )
+            days_breakdown.append(
+                {
+                    "date": day.date.isoformat() if day.date else None,
+                    "hotel": day.hotel_name,
+                    "hotel_cost": hotel_cost,
+                    "activities_cost": act_cost,
+                    "day_total": hotel_cost + act_cost,
+                }
+            )
+        general_items = session.query(GeneralItem).filter(GeneralItem.trip_id == trip_id).all()
         total_general = sum(gi.price or 0.0 for gi in general_items)
         general_breakdown = [
-            {"name": gi.name, "cost": gi.price or 0.0}
-            for gi in general_items
-            if gi.price
+            {"name": gi.name, "cost": gi.price or 0.0} for gi in general_items if gi.price
         ]
         return {
             "trip_name": trip.name,

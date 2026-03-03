@@ -115,10 +115,7 @@ def _build_messages(prompt: str) -> list[dict[str, str]]:
         "You are a meticulous travel planner. "
         "First, think step-by-step about the best itinerary in a few sentences (this is your reasoning). "
         "Then, provide the final answer as a compact JSON object. "
-        "Use this schema for the JSON part: "
-        + json.dumps(schema)
-        + "\n"
-        + rules
+        "Use this schema for the JSON part: " + json.dumps(schema) + "\n" + rules
     )
     return [
         {"role": "system", "content": system_prompt},
@@ -130,12 +127,7 @@ def build_full_prompt_text(trip_name: str, description: str | None, days: list[d
     """Return the exact SYSTEM/USER prompt that will be sent to the LLM."""
     prompt = build_trip_prompt(trip_name, description, days)
     messages = _build_messages(prompt)
-    return (
-        "SYSTEM:\n"
-        + messages[0]["content"]
-        + "\n\nUSER:\n"
-        + messages[1]["content"]
-    )
+    return "SYSTEM:\n" + messages[0]["content"] + "\n\nUSER:\n" + messages[1]["content"]
 
 
 def _extract_json_block(text: str) -> str:
@@ -203,12 +195,7 @@ def generate_itinerary(
     logs_path = _ensure_logs_dir(trip_id, logs_dir)
     timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
     prompt_file = logs_path / f"{timestamp}_prompt.txt"
-    prompt_content = (
-        "SYSTEM:\n"
-        + messages[0]["content"]
-        + "\n\nUSER:\n"
-        + messages[1]["content"]
-    )
+    prompt_content = "SYSTEM:\n" + messages[0]["content"] + "\n\nUSER:\n" + messages[1]["content"]
     prompt_file.write_text(prompt_content)
     response_file = logs_path / f"{timestamp}_response.json"
     response_file.write_text(json_text)
@@ -237,7 +224,7 @@ def stream_itinerary_generation(
 
     messages = [
         SystemMessage(content=msgs_dicts[0]["content"]),
-        HumanMessage(content=msgs_dicts[1]["content"])
+        HumanMessage(content=msgs_dicts[1]["content"]),
     ]
 
     model_name = os.environ.get("OLLAMA_MODEL", "qwen2.5:7b")

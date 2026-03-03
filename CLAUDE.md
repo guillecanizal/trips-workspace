@@ -26,6 +26,23 @@ ruff format --check app/
 mypy app/
 ```
 
+```bash
+# Run tests
+pytest
+
+# Run tests with inline coverage summary
+pytest --cov=app --cov-report=term-missing
+
+# Generate HTML coverage report (open htmlcov/index.html in browser)
+pytest --cov=app --cov-report=html
+
+# Run a specific test file
+pytest tests/test_kpis.py -v
+
+# Run a specific test by name
+pytest tests/test_routes.py::TestCreateTrip::test_returns_201_and_trip_data -v
+```
+
 ## Environment Variables
 
 | Variable | Default | Description |

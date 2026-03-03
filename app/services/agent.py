@@ -82,7 +82,30 @@ def _clean_text(value: str | None) -> str:
     return (value or "").strip()
 
 
-_ES_WORDS = {"el", "la", "los", "las", "un", "una", "de", "en", "que", "es", "con", "para", "del", "por", "qué", "cuánto", "dame", "dime", "propón", "busca", "muéstrame"}
+_ES_WORDS = {
+    "el",
+    "la",
+    "los",
+    "las",
+    "un",
+    "una",
+    "de",
+    "en",
+    "que",
+    "es",
+    "con",
+    "para",
+    "del",
+    "por",
+    "qué",
+    "cuánto",
+    "dame",
+    "dime",
+    "propón",
+    "busca",
+    "muéstrame",
+}
+
 
 def _detect_lang(text: str) -> str:
     """Return 'es' if the message looks Spanish, otherwise 'en'."""
@@ -133,10 +156,12 @@ def _call_llm_for_candidates(
     user_message = f"Generate {count} {item_type} for {location} on {date}"
 
     structured = get_model().with_structured_output(response_model)
-    result: HotelCandidatesResponse | ActivityCandidatesResponse = structured.invoke([  # type: ignore[assignment]
-        {"role": "system", "content": system_message},
-        {"role": "user", "content": user_message},
-    ])
+    result: HotelCandidatesResponse | ActivityCandidatesResponse = structured.invoke(
+        [  # type: ignore[assignment]
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_message},
+        ]
+    )
     candidates = [c.model_dump() for c in result.candidates]
     if not candidates:
         raise ValueError(f"El modelo no generó candidatos para {location} el {date}.")
@@ -165,7 +190,12 @@ def propose_activities(
     """
     date, location = _prepare_day_context(trip_id, day_index)
     candidates = _call_llm_for_candidates("propose_activities", location, date, n, lang)
-    return {"task": "propose_activities", "day": date, "location": location, "candidates": candidates}
+    return {
+        "task": "propose_activities",
+        "day": date,
+        "location": location,
+        "candidates": candidates,
+    }
 
 
 @tool("propose_hotels", return_direct=False)
@@ -218,9 +248,10 @@ def summarize_trip(trip_id: int) -> dict[str, Any]:
     for day in trip.get("days") or []:
         date_str = day.get("date") or "?"
         hotel = (day.get("hotel") or {}).get("name") or "sin hotel"
-        activities = ", ".join(
-            a.get("name") or "?" for a in (day.get("activities") or [])
-        ) or "sin actividades"
+        activities = (
+            ", ".join(a.get("name") or "?" for a in (day.get("activities") or []))
+            or "sin actividades"
+        )
         days_text.append(f"- {date_str}: Hotel: {hotel}. Actividades: {activities}")
 
     prompt = (

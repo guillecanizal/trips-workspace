@@ -8,3 +8,5 @@ logs/
 .vscode/
 opencode.json
 .mcp.json
+htmlcov/
+.coverage
