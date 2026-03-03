@@ -1,6 +1,8 @@
 # Trip Planner
 
-![CI](https://github.com/guillecanizal/trips-workspace/actions/workflows/ci.yml/badge.svg?branch=main)
+![CI](https://github.com/guillecanizal/trips-workspace/actions/workflows/ci.yml/badge.svg?branch=main) ![Python](https://img.shields.io/badge/python-3.12-blue) ![License](https://img.shields.io/badge/license-Apache%202.0-green)
+
+**Generate a complete travel plan in minutes — fully editable and always under your control.**
 
 A personal AI travel planning workspace. Plan complete trips day by day — hotels, activities, costs, and logistics — with an AI copilot that suggests, never decides.
 
@@ -107,6 +109,9 @@ The UI remains the primary interface. The MCP layer is additive.
 - [Ollama](https://ollama.com) (optional, for AI features)
 
 ```bash
+git clone https://github.com/guillecanizal/trips-workspace.git
+cd trips-workspace
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python run.py
 ```
@@ -132,6 +137,16 @@ The app starts fine without Ollama — AI features activate automatically once a
 | `llama3.1:8b` | 8 GB+ | Fast responses |
 
 Override the default with `OLLAMA_MODEL=gemma2:9b python run.py`.
+
+---
+
+## Development
+
+```bash
+pytest                              # run the test suite (74 tests)
+pytest --cov=app --cov-report=html  # with HTML coverage report
+ruff check app/                     # lint
+```
 
 ---
 
