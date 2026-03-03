@@ -1,6 +1,6 @@
 # Trip Planner
 
-![CI](https://github.com/guillecanizal/trips-workspace/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/guillecanizal/trips-workspace/actions/workflows/ci.yml/badge.svg?branch=main)
 
 A personal AI travel planning workspace. Plan complete trips day by day — hotels, activities, costs, and logistics — with an AI copilot that suggests, never decides.
 
