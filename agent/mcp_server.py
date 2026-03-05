@@ -118,6 +118,9 @@ def plan_day(
     hotel_reservation_id: str | None = None,
     hotel_link: str | None = None,
     activities: list[dict] | None = None,
+    distance_km: float | None = None,
+    distance_hours: int | None = None,
+    distance_minutes: int | None = None,
 ) -> dict:
     """Configure a complete day in one call: set hotel and add all activities.
 
@@ -135,6 +138,9 @@ def plan_day(
         hotel_link: Booking URL
         activities: List of activity dicts with keys: name (required), price, location,
                     description, reservation_id, link, cancelable
+        distance_km: Driving distance to this day's destination in km
+        distance_hours: Drive time hours component
+        distance_minutes: Drive time minutes component (0-59)
 
     Example activities:
         [
@@ -174,6 +180,9 @@ def plan_day(
             day_number=day_number,
             hotel=hotel,
             activities=activity_inputs,
+            distance_km=distance_km,
+            distance_hours=distance_hours,
+            distance_minutes=distance_minutes,
         )
     )
 
@@ -284,14 +293,18 @@ def save_tagline(trip_id: int, day_number: int, tagline: str) -> dict:
 
 @mcp.tool()
 def export_trip(trip_id: int, format: str = "pdf") -> dict:
-    """Get the URL to download the trip export file.
-    Flask must be running for the URL to be accessible.
+    """Get download and view links for the completed trip.
+    Flask must be running for the URLs to be accessible.
 
     Args:
         trip_id: Trip ID
         format: 'pdf' (formatted guide) or 'csv' (spreadsheet). Defaults to 'pdf'.
 
-    Returns a dict with 'url' you can open in a browser.
+    Returns a dict with:
+      - url: direct download link for the export file
+      - web_url: link to view the trip in the web UI
+      - maps_url: Google Maps directions link for the full itinerary (if available)
+    Always show all three links to the user in the final summary.
     """
     return tools.export_trip(trip_id, format)
 

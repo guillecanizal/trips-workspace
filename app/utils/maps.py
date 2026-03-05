@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import urllib.parse
 from typing import Any
 
@@ -47,6 +48,10 @@ def _clean_point(name: str | None, location: str | None) -> str | None:
     location = (location or "").strip()
     if not location:
         return None
+    # Strip parenthetical asides like "(30 min south of Cleveland)" that confuse Maps routing
+    location = re.sub(r"\s*\([^)]*\)", "", location).strip()
+    if not location:
+        return None
     name = (name or "").strip()
     return f"{name}, {location}" if name else location
 
@@ -70,12 +75,13 @@ def build_itinerary_maps_url(data: dict[str, Any]) -> str | None:
         hotel = day.get("hotel") or {}
         point = _clean_point(hotel.get("name"), hotel.get("location"))
 
-        # Fall back to first activity with a location
+        # Fall back to first activity with a location (location only — activity names
+        # are not valid geographic queries for Maps routing)
         if not point:
             for activity in day.get("activities") or []:
                 if not isinstance(activity, dict):
                     continue
-                point = _clean_point(activity.get("name"), activity.get("location"))
+                point = _clean_point(None, activity.get("location"))
                 if point:
                     break
 

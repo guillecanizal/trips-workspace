@@ -161,6 +161,17 @@ def plan_day(data: PlanDayInput) -> dict[str, Any]:
     Returns the updated day with day_number and running trip KPIs."""
     day_id = _resolve_day_id(data.trip_id, data.day_number)
 
+    # Set distance fields
+    if any(v is not None for v in (data.distance_km, data.distance_hours, data.distance_minutes)):
+        dist_payload: dict[str, Any] = {}
+        if data.distance_km is not None:
+            dist_payload["distance_km"] = data.distance_km
+        if data.distance_hours is not None:
+            dist_payload["distance_hours"] = data.distance_hours
+        if data.distance_minutes is not None:
+            dist_payload["distance_minutes"] = data.distance_minutes
+        _put(f"/api/days/{day_id}", dist_payload)
+
     # Set hotel
     if data.hotel is not None:
         _set_hotel_by_id(day_id, data.hotel)
@@ -210,14 +221,27 @@ def remove_activity(trip_id: int, day_number: int, activity_name: str) -> dict[s
 
 
 def export_trip(trip_id: int, format: str = "pdf") -> dict[str, str]:
-    """Return the URL to download the trip export.
-    Flask must be running for the link to be accessible."""
+    """Return the URL to download the trip export plus web and Maps links.
+    Flask must be running for the links to be accessible."""
     fmt = format.lower()
     if fmt not in ("pdf", "csv"):
         raise ValueError("format must be 'pdf' or 'csv'")
     ext = "pdf" if fmt == "pdf" else "csv"
-    url = f"{API_BASE}/trips/{trip_id}/export.{ext}"
-    return {"url": url, "format": fmt, "trip_id": trip_id}
+    export_url = f"{API_BASE}/trips/{trip_id}/export.{ext}"
+    web_url = f"{API_BASE}/trips/{trip_id}"
+
+    maps_url: str | None = None
+    try:
+        maps_resp = httpx.get(f"{API_BASE}/trips/{trip_id}/maps-itinerary", timeout=_TIMEOUT)
+        if maps_resp.status_code == 200:
+            maps_url = maps_resp.json().get("url")
+    except Exception:
+        pass
+
+    result: dict[str, str] = {"url": export_url, "format": fmt, "trip_id": str(trip_id), "web_url": web_url}
+    if maps_url:
+        result["maps_url"] = maps_url
+    return result
 
 
 # ---------------------------------------------------------------------------

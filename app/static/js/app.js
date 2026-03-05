@@ -470,16 +470,21 @@ document.addEventListener('DOMContentLoaded', () => {
       const url = trigger.getAttribute('data-itinerary-maps');
       if (!url || trigger.dataset.loading === 'true') return;
       trigger.dataset.loading = 'true';
+      // Open the window synchronously (during the user gesture) to avoid popup blockers.
+      // We'll set its location once the fetch resolves.
+      const win = window.open('', '_blank');
       try {
         const response = await fetch(url);
         if (!response.ok) throw new Error('Failed');
         const data = await response.json();
         if (data && data.url) {
-          window.open(data.url, '_blank');
+          win.location.href = data.url;
         } else {
+          win.close();
           alert(data?.error || 'Not enough hotel data.');
         }
       } catch (error) {
+        win.close();
         alert(error.message || 'Unable to build itinerary.');
       } finally {
         delete trigger.dataset.loading;

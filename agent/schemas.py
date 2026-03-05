@@ -30,6 +30,9 @@ class PlanDayInput(BaseModel):
     day_number: int = Field(description="Day number (1-based, e.g. 1 = first day of trip)")
     hotel: HotelInput | None = Field(default=None, description="Hotel for this night. Omit if no overnight stay (last day) or same hotel as previous day.")
     activities: list[ActivityInput] = Field(default_factory=list, description="Activities for this day, in chronological order")
+    distance_km: float | None = Field(default=None, description="Driving distance to this day's destination in km")
+    distance_hours: int | None = Field(default=None, description="Drive time hours component (e.g. 3 for 3h 30m)")
+    distance_minutes: int | None = Field(default=None, description="Drive time minutes component 0-59 (e.g. 30 for 3h 30m)")
 
 
 class CreateTripInput(BaseModel):
