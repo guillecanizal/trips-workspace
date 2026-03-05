@@ -281,6 +281,12 @@ def add_general_item(trip_id: int, item: GeneralItemInput) -> dict[str, Any]:
     return _post(f"/api/trips/{trip_id}/general-items", payload)
 
 
+def save_tagline(trip_id: int, day_number: int, tagline: str) -> dict[str, Any]:
+    """Save a tagline for a specific day."""
+    day_id = _resolve_day_id(trip_id, day_number)
+    return _post(f"/api/days/{day_id}/tagline", {"tagline": tagline})
+
+
 def remove_general_item(trip_id: int, item_name: str) -> dict[str, Any]:
     """Remove a general item by name from a trip."""
     items: list[dict] = _get(f"/api/trips/{trip_id}/general-items")  # type: ignore[assignment]

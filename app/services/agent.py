@@ -164,7 +164,7 @@ def _call_llm_for_candidates(
     )
     candidates = [c.model_dump() for c in result.candidates]
     if not candidates:
-        raise ValueError(f"El modelo no generó candidatos para {location} el {date}.")
+        raise ValueError(f"No candidates generated for {location} on {date}.")
     return candidates
 
 
@@ -220,12 +220,12 @@ def propose_hotels(
 
 @tool("estimate_budget", return_direct=False)
 def estimate_budget(trip_id: int) -> dict[str, Any]:
-    """Calcula el presupuesto total del viaje desglosado por categorías.
-    Úsala cuando el usuario pida el presupuesto, costes totales o desglose
-    de gastos del viaje (e.g. "¿cuánto cuesta el viaje?").
+    """Calculate the total trip budget broken down by categories.
+    Use it when the user asks about the budget, total costs, or expense
+    breakdown for the trip (e.g. "how much does the trip cost?").
 
     Args:
-        trip_id: ID del viaje
+        trip_id: Trip ID
     """
     summary = dal.get_trip_cost_summary(trip_id)
     return {"task": "estimate_budget", **summary}
@@ -233,12 +233,12 @@ def estimate_budget(trip_id: int) -> dict[str, Any]:
 
 @tool("summarize_trip", return_direct=False)
 def summarize_trip(trip_id: int) -> dict[str, Any]:
-    """Genera un resumen narrativo del viaje en prosa.
-    Úsala cuando el usuario pida un resumen, narrativa o diario del viaje
-    (e.g. "resúmeme el viaje").
+    """Generate a narrative prose summary of the trip.
+    Use it when the user asks for a summary, narrative, or travel diary
+    (e.g. "summarize the trip").
 
     Args:
-        trip_id: ID del viaje
+        trip_id: Trip ID
     """
     trip = dal.get_trip_compact(trip_id)
     if not trip:
@@ -247,20 +247,20 @@ def summarize_trip(trip_id: int) -> dict[str, Any]:
     days_text = []
     for day in trip.get("days") or []:
         date_str = day.get("date") or "?"
-        hotel = (day.get("hotel") or {}).get("name") or "sin hotel"
+        hotel = (day.get("hotel") or {}).get("name") or "no hotel"
         activities = (
             ", ".join(a.get("name") or "?" for a in (day.get("activities") or []))
-            or "sin actividades"
+            or "no activities"
         )
-        days_text.append(f"- {date_str}: Hotel: {hotel}. Actividades: {activities}")
+        days_text.append(f"- {date_str}: Hotel: {hotel}. Activities: {activities}")
 
     prompt = (
-        f"Genera un resumen narrativo breve (3-5 párrafos) del viaje "
+        f"Write a short narrative summary (3-5 paragraphs) of the trip "
         f'"{trip.get("name")}".\n'
-        f"Descripción: {trip.get('description') or 'N/A'}\n"
-        f"Itinerario:\n" + "\n".join(days_text) + "\n\n"
-        "Escribe en español, en tono amigable, como un diario de viaje. "
-        "No uses JSON, solo texto en prosa."
+        f"Description: {trip.get('description') or 'N/A'}\n"
+        f"Itinerary:\n" + "\n".join(days_text) + "\n\n"
+        "Use a friendly tone, like a travel diary. "
+        "No JSON, plain prose only."
     )
 
     response = get_model().invoke([{"role": "user", "content": prompt}])
@@ -400,30 +400,30 @@ def hybrid_chat_stream(
             hotel_location = hotel.get("location") or ""
 
             day_context = (
-                f"El usuario está viendo el Día {day_index} ({day_date}"
+                f"The user is viewing Day {day_index} ({day_date}"
                 + (f", {hotel_location}" if hotel_location else "")
-                + f"). Cuando uses herramientas que requieran day_index, usa {day_index}. "
-                "Responde siempre en el contexto de este día específico. "
+                + f"). When using tools that require day_index, use {day_index}. "
+                "Always respond in the context of this specific day. "
             )
 
             # Build a detailed block with everything recorded for this day
-            lines: list[str] = [f"DATOS DEL DÍA {day_index} ({day_date}):"]
+            lines: list[str] = [f"DAY {day_index} DATA ({day_date}):"]
             hotel_name = hotel.get("name") or ""
             hotel_desc = hotel.get("description") or ""
             hotel_price = hotel.get("price")
             if hotel_name or hotel_location:
-                hotel_line = f"  Hotel: {hotel_name or '(sin nombre)'}"
+                hotel_line = f"  Hotel: {hotel_name or '(unnamed)'}"
                 if hotel_location:
                     hotel_line += f" — {hotel_location}"
                 if hotel_price is not None:
-                    hotel_line += f" (€{hotel_price}/noche)"
+                    hotel_line += f" (€{hotel_price}/night)"
                 lines.append(hotel_line)
                 if hotel_desc:
                     lines.append(f"    {hotel_desc}")
             else:
-                lines.append("  Hotel: no definido")
+                lines.append("  Hotel: not set")
             if activities:
-                lines.append("  Actividades:")
+                lines.append("  Activities:")
                 for i, act in enumerate(activities, 1):
                     act_name = act.get("name") or "?"
                     act_loc = act.get("location") or ""
@@ -438,40 +438,40 @@ def hybrid_chat_stream(
                     if act_desc:
                         lines.append(f"       {act_desc}")
             else:
-                lines.append("  Actividades: ninguna definida")
+                lines.append("  Activities: none defined")
             day_detail_block = "\n".join(lines)
         except ValueError:
             pass
 
-    yield {"type": "status", "message": "Consultando el modelo de IA..."}
+    yield {"type": "status", "message": "Querying the AI model..."}
 
     trip = dal.get_trip_compact(trip_id)
     knowledge = (trip.get("knowledge_general") or "").strip()
 
     system_prompt = (
-        "Eres un asistente conversacional para planificación de viajes. "
+        "You are a conversational travel planning assistant. "
         + day_context
-        + "Responde con naturalidad a preguntas y comentarios. "
-        "REGLAS DE USO DE HERRAMIENTAS:\n"
-        "- Propuestas/alternativas/ideas de actividades o planes → llama SIEMPRE a propose_activities. Nunca listes actividades en texto plano.\n"
-        "- Propuestas/alternativas/ideas de hoteles o alojamiento → llama SIEMPRE a propose_hotels. Nunca listes hoteles en texto plano.\n"
-        "- Preguntas sobre presupuesto o costes → llama a estimate_budget.\n"
-        "- Petición de resumen del viaje → llama a summarize_trip.\n"
-        "- Cualquier otra pregunta (curiosidades, distancias, horarios, etc.) → responde en texto directamente.\n\n"
-        "CONTEXTO DEL VIAJE:\n"
+        + "Respond naturally to questions and comments. "
+        "TOOL USAGE RULES:\n"
+        "- Proposals/alternatives/ideas for activities or plans → ALWAYS call propose_activities. Never list activities as plain text.\n"
+        "- Proposals/alternatives/ideas for hotels or accommodation → ALWAYS call propose_hotels. Never list hotels as plain text.\n"
+        "- Questions about budget or costs → call estimate_budget.\n"
+        "- Request for trip summary → call summarize_trip.\n"
+        "- Any other question (curiosities, distances, schedules, etc.) → reply directly in text.\n\n"
+        "TRIP CONTEXT:\n"
         f"Trip ID: {trip_id}\n"
-        f"Nombre: {trip.get('name')}\n"
-        f"Fechas: {trip.get('start_date')} → {trip.get('end_date')}\n"
-        f"Descripción: {trip.get('description') or 'N/A'}\n"
+        f"Name: {trip.get('name')}\n"
+        f"Dates: {trip.get('start_date')} → {trip.get('end_date')}\n"
+        f"Description: {trip.get('description') or 'N/A'}\n"
     )
 
     if day_detail_block:
         system_prompt += f"\n{day_detail_block}\n"
 
     if knowledge:
-        system_prompt += f"\nINFORMACIÓN SOBRE EL DESTINO:\n{knowledge}\n"
+        system_prompt += f"\nDESTINATION INFORMATION:\n{knowledge}\n"
 
-    system_prompt += f"\nSiempre usa trip_id={trip_id} en las herramientas. Responde en el mismo idioma que el usuario."
+    system_prompt += f"\nAlways use trip_id={trip_id} in tools. Respond in the same language as the user."
 
     history = _get_history(tid)
     messages = [

@@ -276,6 +276,13 @@ def remove_general_item(trip_id: int, item_name: str) -> dict:
 
 
 @mcp.tool()
+def save_tagline(trip_id: int, day_number: int, tagline: str) -> dict:
+    """Save a short evocative tagline for a specific day (2–5 words, no punctuation at the end).
+    Call once per day after all days have been planned."""
+    return tools.save_tagline(trip_id, day_number, tagline)
+
+
+@mcp.tool()
 def export_trip(trip_id: int, format: str = "pdf") -> dict:
     """Get the URL to download the trip export file.
     Flask must be running for the URL to be accessible.

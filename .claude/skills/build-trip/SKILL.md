@@ -31,10 +31,11 @@ If any required field is missing, ask before proceeding.
 Compute per-day budget before starting:
 
 ```
-budget_per_day = total_budget / num_days
-hotel_per_day  = budget_per_day * 0.55   (55% for accommodation)
-activities_per_day = budget_per_day * 0.35  (35% for activities)
-buffer = budget_per_day * 0.10             (10% margin)
+general_items_budget = total_budget * 0.20  (20% for flights, insurance, etc.)
+daily_budget = (total_budget - general_items_budget) / num_days
+hotel_per_day  = daily_budget * 0.55   (55% for accommodation)
+activities_per_day = daily_budget * 0.35  (35% for activities)
+buffer = daily_budget * 0.10             (10% margin)
 ```
 
 Keep this allocation visible while planning each day.
@@ -52,7 +53,17 @@ Call `get_trip(trip_id)` to confirm the day count and dates. Plan the geographic
 - Place travel-heavy days (arrivals/departures) at the start and end
 - Avoid backtracking
 
-### 3. Plan each day with `plan_day`
+### 3. Add general items
+
+Call `add_general_item` for trip-level costs that don't belong to a specific day:
+- **Flights**: round-trip flights to the destination (estimate based on travel style and distance)
+- **Travel insurance**: ~€30–80 per person depending on destination and duration
+- **Airport transfers**: if not already added as day activities
+- **Car rental** or **rail pass**: if relevant to the destination/style
+
+Keep total general items within `general_items_budget`. These costs appear in the KPIs and budget summary.
+
+### 4. Plan each day with `plan_day`
 
 For **each day** call `plan_day(trip_id, day_number, hotel_name, hotel_price, ..., activities=[...])`.
 
@@ -65,16 +76,20 @@ Rules per day:
 
 After each `plan_day` call, check `trip_kpis.total_eur` returned in the response. If the running total is tracking above budget, reduce hotel cost or activity count on the next days.
 
-### 4. Verify final KPIs
+### 5. Verify final KPIs
 
 After all days are planned, call `get_trip(trip_id)` and show the user:
 - Total cost vs budget
-- Hotel total / Activities total breakdown
+- Hotel total / Activities total / General items breakdown
 - Day count and activity count
 
 If total is over budget (>5% above), identify the most expensive days and offer to adjust them using `set_hotel` or `remove_activity`.
 
-### 5. Export
+### 6. Generate taglines
+
+For each planned day, compose a short evocative tagline (2–5 words, no trailing punctuation) based on the day's location and activities — e.g. "Temples and twilight strolls", "Coastal hike to the lighthouse". Then call `save_tagline(trip_id, day_number, tagline)` for each day.
+
+### 7. Export
 
 Call `export_trip(trip_id, "pdf")` and show the user the URL to download their itinerary.
 
@@ -94,6 +109,9 @@ After completing, show a summary:
 Trip built: [name]
 Days planned: N
 Total cost: €X / €budget
+  General items: €X  (flights, insurance, etc.)
+  Hotels: €X
+  Activities: €X
 ---
 Day 1 — [date]: [hotel name] + N activities
 Day 2 — [date]: [hotel name] + N activities

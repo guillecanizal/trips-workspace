@@ -15,6 +15,15 @@ document.addEventListener('alpine:init', () => {
     minimized: false,
     _prevHeight: 0,
 
+    init() {
+      const savedMin = localStorage.getItem('chat_minimized');
+      if (savedMin !== null) this.minimized = savedMin === 'true';
+      const savedH = localStorage.getItem('chat_height');
+      if (savedH !== null) this.panelHeight = parseInt(savedH, 10) || this.panelHeight;
+      this.$watch('minimized', v => localStorage.setItem('chat_minimized', v));
+      this.$watch('panelHeight', v => localStorage.setItem('chat_height', v));
+    },
+
     toggleMinimize() {
       if (this.minimized) {
         this.panelHeight = this._prevHeight || Math.round(window.innerHeight * 0.33);
