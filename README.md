@@ -4,6 +4,8 @@
 
 **Generate a complete travel plan in minutes — fully editable and always under your control.**
 
+![demo](docs/video/trips-v1.mp4)
+
 A personal AI travel planning workspace. Plan complete trips day by day — hotels, activities, costs, and logistics — with an AI copilot that suggests, never decides.
 
 Runs entirely on your machine. No account, no subscription, no data leaving your device.
@@ -88,17 +90,21 @@ export_trip(id)           → PDF download URL
 
 **Setup:** run `/mcp-trips` inside Claude Code for guided configuration. See [`agent/README.md`](agent/README.md) for full details.
 
+> **Privacy note:** the MCP server and all trip data stay local. When you use an external client like Claude Code, only the LLM calls go through that provider's network — the data never leaves your machine.
+
 The UI remains the primary interface. The MCP layer is additive.
 
 ---
 
 ## Philosophy
 
-- **Private by default.** No cloud. No analytics. No third-party services. The AI runs locally via [Ollama](https://ollama.com).
-- **No social features.** No sharing, comments, or followers.
-- **No marketplace.** The app will never show ads, promoted hotels, or affiliate links.
+- **Private by default.** Travel plans reveal where you'll be, when, and what you're spending — making privacy opt-in is not enough. No cloud, no analytics, no third-party services. The AI runs locally via [Ollama](https://ollama.com), so there is nothing to leak, no policy to read, and no account to delete.
+- **Propose, don't decide.** The AI shows options and waits for your approval. Every change is explicit and reversible. Early tools that "do it for you" lose user trust quickly when automation gets things wrong.
+- **Iterative by design.** You don't plan a two-week trip in a single prompt. The AI layer is built around how people actually plan: one day at a time, with budget and geography evolving as the plan builds.
+- **Structured where it matters, open everywhere else.** A notes app won't give you a budget total or a maps route. A rigid booking tool locks you in. We chose opinionated structure where it creates value — costs, dates, locations — and let everything else be free-form.
+- **Built to be abandoned.** Export to PDF or CSV at any time, paste your data into any AI, generate a maps route with one click. If you stop using it tomorrow, nothing is lost. Lock-in is a product choice we deliberately rejected.
+- **No social features, no marketplace.** No sharing, comments, followers, ads, promoted hotels, or affiliate links.
 - **Works without AI.** The AI features are additive. The app is fully functional as a plain itinerary organiser if Ollama is not installed.
-- **Minimal and fast.** The goal is to go from trip idea to a complete, costed plan in minutes.
 
 ---
 
