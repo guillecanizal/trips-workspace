@@ -4,7 +4,8 @@
 
 **Generate a complete travel plan in minutes — fully editable and always under your control.**
 
-![demo](docs/video/trips-v3.mp4)
+https://github.com/user-attachments/assets/392bd391-ab96-40e5-909f-6c061b2d3d05
+
 
 A personal AI travel planning workspace. Plan complete trips day by day — hotels, activities, costs, and logistics — with an AI copilot that suggests, never decides.
 
