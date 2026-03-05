@@ -471,7 +471,9 @@ def hybrid_chat_stream(
     if knowledge:
         system_prompt += f"\nDESTINATION INFORMATION:\n{knowledge}\n"
 
-    system_prompt += f"\nAlways use trip_id={trip_id} in tools. Respond in the same language as the user."
+    system_prompt += (
+        f"\nAlways use trip_id={trip_id} in tools. Respond in the same language as the user."
+    )
 
     history = _get_history(tid)
     messages = [
