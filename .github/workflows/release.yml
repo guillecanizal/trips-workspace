@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Extract changelog for this release
+        id: changelog
+        run: |
+          # Pull out the block between the first two version headings in CHANGELOG.md
+          python3 - <<'EOF'
+          import re, sys
+          text = open("CHANGELOG.md").read()
+          # Match the section for the current tag (strip leading 'v')
+          version = "${{ steps.version.outputs.version }}".lstrip("v")
+          pattern = rf"## \[{re.escape(version)}\].*?\n(.*?)(?=\n## \[|\n\[|\Z)"
+          m = re.search(pattern, text, re.DOTALL)
+          if not m:
+              print(f"No changelog section found for version {version}", file=sys.stderr)
+              sys.exit(1)
+          with open("release_notes.md", "w") as f:
+              f.write(m.group(1).strip())
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Trip Planner ${{ steps.version.outputs.version }}"
+          body_path: release_notes.md
+          make_latest: true
